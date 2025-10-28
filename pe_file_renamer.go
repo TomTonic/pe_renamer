@@ -159,9 +159,9 @@ func processFile(filename string, verbose bool) {
 			return unicode.ToLower(a) == unicode.ToLower(b)
 		},
 	}
+	magicnumber := 2.5 // selected in a way that the resulting % values give a reasonnable representation of the actual equality
 
 	distance := levenshtein.DistanceForStrings([]rune(expectedName), []rune(givenName), opts)
-	magicnumber := 2.5 // selected in a way that the resulting % values give a reasonnable representation of the actual equality
 	sourceLength := float64(len(expectedName)) * magicnumber
 	targetLength := float64(len(givenName)) * magicnumber
 	equality := float64(sourceLength+targetLength-float64(distance)) / float64(sourceLength+targetLength)
@@ -213,13 +213,13 @@ func main() {
 
 func sortCandidates(candidates []RenamingCandidate) {
 	sort.Slice(candidates, func(i, j int) bool {
-		// 1. Nach editing_distance_percentage absteigend
-		if candidates[i].editing_distance_percentage != candidates[j].editing_distance_percentage {
-			return candidates[i].editing_distance_percentage > candidates[j].editing_distance_percentage
-		}
-		// 2. Zuerst die mit gleicher Extension
+		// 1. Zuerst die mit gleicher Extension
 		if candidates[i].matching_extension != candidates[j].matching_extension {
 			return candidates[i].matching_extension
+		}
+		// 2. Nach editing_distance_percentage absteigend
+		if candidates[i].editing_distance_percentage != candidates[j].editing_distance_percentage {
+			return candidates[i].editing_distance_percentage > candidates[j].editing_distance_percentage
 		}
 		// 3. Nach Pfad aufsteigend
 		if candidates[i].Path != candidates[j].Path {
