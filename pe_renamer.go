@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"os"
 
 	levenshtein "github.com/TomTonic/levenshtein"
+	"github.com/alecthomas/kong"
 	"github.com/google/uuid"
 	peparser "github.com/saferwall/pe"
 )
@@ -186,15 +186,15 @@ func processFile(filename string, verbose bool) {
 }
 
 func main() {
-	verbose := flag.Bool("verbose", false, "include parse/open errors in output")
-	flag.Parse()
-
-	if flag.NArg() < 1 {
-		log.Fatalf("Usage: %s [--verbose] <path-to-file-or-directory>", os.Args[0])
+	var cli struct {
+		Verbose bool   `short:"v" help:"Include parse/open errors in output"`
+		Path    string `arg name:"path" required:"" help:"Path to file or directory to search"`
 	}
-	path := flag.Arg(0)
 
-	err := SearchFiles(path, *verbose)
+	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
+	_ = ctx
+
+	err := SearchFiles(cli.Path, cli.Verbose)
 	if err != nil {
 		log.Fatalf("Searching files: %v", err)
 	}
