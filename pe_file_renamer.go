@@ -13,6 +13,7 @@ import (
 	"os"
 
 	levenshtein "github.com/TomTonic/levenshtein"
+	"github.com/google/uuid"
 	peparser "github.com/saferwall/pe"
 )
 
@@ -128,7 +129,7 @@ func processFile(filename string, verbose bool) {
 
 	if err := pe.Parse(); err != nil {
 		if verbose {
-			fmt.Printf("  Info: file is not in PE format: %v\n", err)
+			log.Printf("  Info: file is not in PE format: %v\n", err)
 		}
 		return
 	}
@@ -141,6 +142,9 @@ func processFile(filename string, verbose bool) {
 
 	expectedName := fileinfo.Name
 	expectedExt := filepath.Ext(expectedName)
+	expectedNameWithoutExt := strings.TrimSuffix(expectedName, expectedExt)
+	expectedExt = strings.ToLower(expectedExt)
+	expectedName = expectedNameWithoutExt + expectedExt
 
 	if givenName == expectedName {
 		return
@@ -202,12 +206,15 @@ func main() {
 	sortCandidates(candidateList)
 
 	for _, candidate := range candidateList {
+		tempname := uuid.New().String()
 		fmt.Printf("# =========================================\n")
 		fmt.Printf("# Original File Name: %s\n", candidate.OriginalName)
 		fmt.Printf("# New Name:           %s\n", candidate.NewName)
 		fmt.Printf("# Matching Ext:       %v\n", candidate.matching_extension)
 		fmt.Printf("# Similarity:        %.1f%%\n", candidate.editing_distance_percentage)
-		fmt.Printf("mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)), strconv.Quote(filepath.Join(candidate.Path, candidate.NewName)))
+		fmt.Printf("mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)), strconv.Quote(filepath.Join(candidate.Path, tempname)))
+		fmt.Printf("mkdir %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)))
+		fmt.Printf("mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, tempname)), strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName, candidate.NewName)))
 	}
 }
 
