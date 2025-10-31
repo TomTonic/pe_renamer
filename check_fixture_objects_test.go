@@ -20,7 +20,7 @@ import (
 //   - sqlite3win64arm
 //
 // The test fails if any file is missing or if the file cannot be parsed as PE.
-func TestFixturesPresentAndParseable(t *testing.T) {
+func TestFixtureObjectsPresentAndParseable(t *testing.T) {
 	repoRoot, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
