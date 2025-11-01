@@ -190,3 +190,28 @@ func Test_Subfolder(t *testing.T) {
 
 	RunCasesAndCheck(t, cases)
 }
+
+func Test_ExtEqualFlag(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "puttywin32x86.exe",
+			ExpectedFileName:   "puttywin32x86.exe/PuTTY.exe",
+			StdoutRegex:        regexp.MustCompile(`.*extension matches: true.*`),
+		},
+		{
+			BinFile:            "sqlite3win32x86",
+			ObfuscatedFileName: "./sqlite3win32x86.dl_",
+			ExpectedFileName:   "./sqlite3win32x86.dl_/sqlite3.dll",
+			StdoutRegex:        regexp.MustCompile(`.*extension matches: false.*`),
+		},
+		{
+			BinFile:            "NSISPortable311",
+			ObfuscatedFileName: "./NSISPortable311",
+			ExpectedFileName:   "./NSISPortable311/NSISPortable_3.11_English.paf.exe",
+			StdoutRegex:        regexp.MustCompile(`.*extension matches: false.*`),
+		},
+	}
+
+	RunCasesAndCheck(t, cases)
+}
