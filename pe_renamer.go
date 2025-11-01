@@ -274,7 +274,7 @@ func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun b
 	sortCandidates(candidateList)
 
 	for _, candidate := range candidateList {
-		err := renameCandidate(out, candidate, verbose, dryRun)
+		err := renameCandidate(out, candidate, verbose, dryRun, justExt)
 		if err != nil {
 			return err
 		}
@@ -282,11 +282,15 @@ func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun b
 	return nil
 }
 
-func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, dryRun bool) error {
+func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, dryRun bool, justExt bool) error {
 	tempname := uuid.New().String()
 	ofn := filepath.Join(candidate.Path, candidate.OriginalName)
 	tmp := filepath.Join(candidate.Path, tempname)
 	nfn := filepath.Join(ofn, candidate.NewName)
+
+	if justExt {
+		nfn = filepath.Join(candidate.Path, candidate.NewName)
+	}
 
 	if dryRun || verbose {
 		// print the planned operation
@@ -296,7 +300,15 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 		return nil
 	}
 
-	// perform the operations
+	if justExt {
+		// perform simple rename
+		if err := os.Rename(ofn, nfn); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// perform complex rename: move original file to temp name, create dir with original name, move temp file into that dir with new name
 	if err := os.Rename(ofn, tmp); err != nil {
 		return err
 	}
