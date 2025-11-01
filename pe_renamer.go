@@ -135,7 +135,7 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	}
 }
 
-func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer) error {
+func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -150,21 +150,21 @@ func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandi
 		for _, e := range entries {
 			fullChildName := filepath.Join(path, e.Name())
 			if e.IsDir() {
-				err := SearchFiles(fullChildName, verbose, candidates, out)
+				err := SearchFiles(fullChildName, verbose, candidates, out, justExt)
 				if err != nil {
 					return err
 				}
 			} else {
-				processFile(fullChildName, verbose, candidates, out)
+				processFile(fullChildName, verbose, candidates, out, justExt)
 			}
 		}
 	} else {
-		processFile(path, verbose, candidates, out)
+		processFile(path, verbose, candidates, out, justExt)
 	}
 	return nil
 }
 
-func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer) {
+func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool) {
 	if verbose {
 		fmt.Fprintf(out, "File: %s\n", filename)
 	}
@@ -199,6 +199,12 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	expectedNameWithoutExt := strings.TrimSuffix(expectedName, expectedExt)
 	expectedExt = strings.ToLower(expectedExt)
 	expectedName = expectedNameWithoutExt + expectedExt
+
+	// If JustExt flag is set, only change the extension; keep original base name
+	if justExt {
+		base := strings.TrimSuffix(givenName, givenExt)
+		expectedName = base + expectedExt
+	}
 
 	if verbose {
 		fmt.Fprintf(out, "  Given/expected name: %s ↔ %s\n", givenName, expectedName)
@@ -251,13 +257,13 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 // Run executes the main renaming-detection logic and writes human-readable
 // operations to out (stdout) and logs to errWriter (stderr). It returns an error
 // if searching or parsing fails.
-func Run(path string, verbose bool, dryRun bool, out io.Writer, errWriter io.Writer) error {
+func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun bool, justExt bool) error {
 	// set log output to errWriter so verbose parse errors are captured there
 	log.SetOutput(errWriter)
 
 	candidates := make(map[string]RenamingCandidate, 0)
 
-	if err := SearchFiles(path, verbose, &candidates, out); err != nil {
+	if err := SearchFiles(path, verbose, &candidates, out, justExt); err != nil {
 		return err
 	}
 
@@ -305,15 +311,17 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 
 func main() {
 	var cli struct {
-		Verbose bool   `short:"v" help:"Include parse/open errors in output"`
-		DryRun  bool   `short:"n" help:"Don't perform writes; only show planned operations (dry-run)"`
-		Path    string `arg:"" required:"" help:"Path to file or directory to search"`
+		Verbose    bool   `short:"v" help:"Print verbose output during processing"`
+		DryRun     bool   `short:"n" help:"Don't perform writes; only show planned operations (dry-run)"`
+		IgnoreCase bool   `short:"i" help:"Ignore case when comparing filenames"`
+		JustExt    bool   `short:"e" help:"Only append an appropriate extension without renaming the base filename"`
+		Path       string `arg:"" required:"" help:"Path to file or directory to search"`
 	}
 
 	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
 	_ = ctx
 
-	if err := Run(cli.Path, cli.Verbose, cli.DryRun, os.Stdout, os.Stderr); err != nil {
+	if err := Run(os.Stdout, os.Stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt); err != nil {
 		log.Fatalf("run: %v", err)
 	}
 }
