@@ -35,6 +35,64 @@ Suppose you have a directory with files like `_CBA1F54FF12A5D6D107C97BFFEFC2C62`
 1. Identify which of these are valid PE files.
 2. Extract the original filename from the PE metadata (e.g., `log4net.dll` resp. `ATL.dll`).
 3. Create a folders named `_CBA1F54FF12A5D6D107C97BFFEFC2C62/` resp. `Global_VC_ATLANSI_f0.7EBEDD68_AA66_11D2_B980_006097C4DE24` and move the files inside, renaming it to `log4net.dll` resp. `ATL.dll`.
+// ...existing code...
+
+## Installation
+
+From source (recommended)
+
+```bash
+# installs into $(go env GOPATH)/bin (Go 1.17+)
+go install github.com/TomTonic/pe_renamer@latest
+```
+
+Make sure your `$GOPATH/bin` (or `$(go env GOPATH)/bin`) is in your PATH.
+
+Build locally
+
+```bash
+git clone https://github.com/TomTonic/pe_renamer.git
+cd pe_renamer
+go build -o pe_renamer ./...
+# Windows:
+# go build -o pe_renamer.exe ./...
+```
+
+## Usage
+
+### Basic
+
+```bash
+pe_renamer [flags] <path>
+```
+
+### Common flags
+
+- --dry-run, -n    : don't perform filesystem changes, only print planned mkdir/mv operations
+- --verbose        : print parser/log messages to stderr
+
+### Examples
+
+Dry-run (inspect planned changes)
+
+```bash
+# Linux/macOS
+pe_renamer --dry-run --verbose ./packages
+
+# Windows PowerShell
+.\pe_renamer.exe -n --verbose .\packages
+```
+
+Apply changes (actually perform renames)
+
+```bash
+pe_renamer ./packages
+```
+
+### Notes
+
+- Use --dry-run to verify the effects before applying them.
+- The tool attempts multiple heuristics (exports, CLR metadata, PE version resources) to derive an original filename; it may not always find a perfect name.
 
 ## License
 
