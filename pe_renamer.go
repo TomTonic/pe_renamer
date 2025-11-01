@@ -188,7 +188,7 @@ func processFile(filename string, verbose bool) {
 func main() {
 	var cli struct {
 		Verbose bool   `short:"v" help:"Include parse/open errors in output"`
-		Path    string `arg name:"path" required:"" help:"Path to file or directory to search"`
+		Path    string `arg:"" required:"" help:"Path to file or directory to search"`
 	}
 
 	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
