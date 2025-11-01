@@ -278,12 +278,6 @@ func Run(path string, verbose bool, dryRun bool, out io.Writer, errWriter io.Wri
 
 func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, dryRun bool) error {
 	tempname := uuid.New().String()
-	if verbose {
-		fmt.Fprintf(out, "File: %s\n", candidate.OriginalName)
-		fmt.Fprintf(out, "      new name: %s\n", candidate.NewName)
-		fmt.Fprintf(out, "      similarity: %.1f%%\n", candidate.editing_distance_percentage)
-		fmt.Fprintf(out, "      extension matches: %v\n", candidate.matching_extension)
-	}
 	ofn := filepath.Join(candidate.Path, candidate.OriginalName)
 	tmp := filepath.Join(candidate.Path, tempname)
 	nfn := filepath.Join(ofn, candidate.NewName)
