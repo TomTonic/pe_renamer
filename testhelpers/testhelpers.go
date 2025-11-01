@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	set3 "github.com/TomTonic/Set3"
@@ -123,7 +124,7 @@ func CopyFromTestdata(t *testing.T, source string, dstDir string, dstName string
 // DirTree returns a set of file system paths (relative to root) for all files
 // and directories under root. Each entry is prefixed with "D " for directories
 // and "F " for files. Useful for asserting a created directory structure in tests.
-func DirTree(t *testing.T, root string) (*set3.Set3[string], error) {
+func DirTree(t *testing.T, root string, allToLower bool) (*set3.Set3[string], error) {
 	t.Helper()
 	out := set3.Empty[string]()
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -138,6 +139,9 @@ func DirTree(t *testing.T, root string) (*set3.Set3[string], error) {
 			return err
 		}
 		entry := filepath.ToSlash(filepath.Clean(rel))
+		if allToLower {
+			entry = strings.ToLower(entry)
+		}
 		if info.IsDir() {
 			rel = "D " + entry
 		} else {

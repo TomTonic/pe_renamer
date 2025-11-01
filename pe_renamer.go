@@ -135,7 +135,7 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	}
 }
 
-func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool) error {
+func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool, ignoreCase bool) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -150,21 +150,21 @@ func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandi
 		for _, e := range entries {
 			fullChildName := filepath.Join(path, e.Name())
 			if e.IsDir() {
-				err := SearchFiles(fullChildName, verbose, candidates, out, justExt)
+				err := SearchFiles(fullChildName, verbose, candidates, out, justExt, ignoreCase)
 				if err != nil {
 					return err
 				}
 			} else {
-				processFile(fullChildName, verbose, candidates, out, justExt)
+				processFile(fullChildName, verbose, candidates, out, justExt, ignoreCase)
 			}
 		}
 	} else {
-		processFile(path, verbose, candidates, out, justExt)
+		processFile(path, verbose, candidates, out, justExt, ignoreCase)
 	}
 	return nil
 }
 
-func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool) {
+func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool, ignoreCase bool) {
 	if verbose {
 		fmt.Fprintf(out, "File: %s\n", filename)
 	}
@@ -239,7 +239,8 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 		fmt.Fprintf(out, "  Similarity: %.1f%%\n", equality)
 	}
 
-	if givenName == expectedName {
+	// consider ignoreCase when determining if names are already equal
+	if (ignoreCase && strings.EqualFold(givenName, expectedName)) || (!ignoreCase && givenName == expectedName) {
 		return
 	}
 
@@ -257,13 +258,13 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 // Run executes the main renaming-detection logic and writes human-readable
 // operations to out (stdout) and logs to errWriter (stderr). It returns an error
 // if searching or parsing fails.
-func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun bool, justExt bool) error {
+func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool) error {
 	// set log output to errWriter so verbose parse errors are captured there
 	log.SetOutput(errWriter)
 
 	candidates := make(map[string]RenamingCandidate, 0)
 
-	if err := SearchFiles(path, verbose, &candidates, out, justExt); err != nil {
+	if err := SearchFiles(path, verbose, &candidates, out, justExt, ignoreCase); err != nil {
 		return err
 	}
 
@@ -333,7 +334,7 @@ func main() {
 	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
 	_ = ctx
 
-	if err := Run(os.Stdout, os.Stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt); err != nil {
+	if err := Run(os.Stdout, os.Stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase); err != nil {
 		log.Fatalf("run: %v", err)
 	}
 }

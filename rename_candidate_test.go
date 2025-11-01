@@ -17,7 +17,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// capture directory tree before
-	before, err := testhelpers.DirTree(t, td)
+	before, err := testhelpers.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree before failed: %v", err)
 	}
@@ -42,7 +42,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	}
 
 	// capture directory tree after and assert no changes as this is a dry-run
-	after, err := testhelpers.DirTree(t, td)
+	after, err := testhelpers.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree after failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// capture directory tree before
-	before, err := testhelpers.DirTree(t, td)
+	before, err := testhelpers.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree before failed: %v", err)
 	}
@@ -86,7 +86,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	}
 
 	// capture directory tree after and assert no changes as this is a dry-run
-	after, err := testhelpers.DirTree(t, td)
+	after, err := testhelpers.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree after failed: %v", err)
 	}

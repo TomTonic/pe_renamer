@@ -15,7 +15,7 @@ import (
 
 // RunCasesAndCheck runs Run() in-process against the provided FixtureCase slice.
 // It returns stdout, stderr and the testdir (caller must cleanup).
-func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose bool, dryRun bool, justExt bool) {
+func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose bool, dryRun bool, justExt bool, ignoreCase bool) {
 	//t.Helper()
 	td := t.TempDir()
 	defer os.RemoveAll(td)
@@ -24,7 +24,7 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 	testhelpers.CopyCasesToDir(t, cases, td)
 
 	var stdout, stderr strings.Builder
-	if err := Run(&stdout, &stderr, td, verbose, dryRun, justExt); err != nil {
+	if err := Run(&stdout, &stderr, td, verbose, dryRun, justExt, ignoreCase); err != nil {
 		t.Fatalf("Run returned error: %v\nstderr: %s", err, stderr.String())
 	}
 
@@ -32,7 +32,7 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 	errStr := stderr.String()
 
 	// capture directory tree before
-	afterDirTree, err := testhelpers.DirTree(t, td)
+	afterDirTree, err := testhelpers.DirTree(t, td, ignoreCase)
 	if err != nil {
 		t.Fatalf("DirTree before failed: %v", err)
 	}
@@ -59,6 +59,9 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 		for i, part := range parts {
 			current = filepath.Join(current, part)
 			currentNormalized := filepath.ToSlash(current)
+			if ignoreCase {
+				currentNormalized = strings.ToLower(currentNormalized)
+			}
 			if i < len(parts)-1 {
 				expectedDirTree.Add("D " + currentNormalized)
 			} else {
@@ -98,7 +101,7 @@ func Test_Sqlite3DLL_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false)
+	RunCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_Log4netDLL_Rename(t *testing.T) {
@@ -115,7 +118,7 @@ func Test_Log4netDLL_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false)
+	RunCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_Putty_Rename(t *testing.T) {
@@ -137,7 +140,7 @@ func Test_Putty_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false)
+	RunCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_NSIS_Rename(t *testing.T) {
@@ -149,7 +152,7 @@ func Test_NSIS_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false)
+	RunCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_PNG_Rename(t *testing.T) {
@@ -162,7 +165,7 @@ func Test_PNG_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false)
+	RunCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_Subfolder(t *testing.T) {
@@ -189,7 +192,7 @@ func Test_Subfolder(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false)
+	RunCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_ExtEqualFlag(t *testing.T) {
@@ -215,7 +218,7 @@ func Test_ExtEqualFlag(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false)
+	RunCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_CorrectName(t *testing.T) {
@@ -228,7 +231,7 @@ func Test_CorrectName(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false)
+	RunCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_JustExt(t *testing.T) {
@@ -246,5 +249,23 @@ func Test_JustExt(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, true)
+	RunCasesAndCheck(t, cases, true, false, true, false)
+}
+
+func Test_IgnoreCase(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "putty.exe",
+			ExpectedFileName:   "PuTTY.exe",
+			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: putty.exe ↔ PuTTY.exe.*`),
+		},
+		{
+			BinFile:            "sqlite3win32x86",
+			ObfuscatedFileName: "sqlite3.DLL",
+			ExpectedFileName:   "SQLite3.dll",
+		},
+	}
+
+	RunCasesAndCheck(t, cases, true, false, false, true)
 }
