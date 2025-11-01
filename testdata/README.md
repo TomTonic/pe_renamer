@@ -4,8 +4,8 @@ This directory contains binary test files for fixtures used by the tests in this
 
 ## Included fixture files (as expected by `check_fixtures_test.go`)
 
-- `log4netdotnet20` — log4net .NET 2.0 build DLL
-- `log4netdotnet462` — log4net .NET 4.6.2 build DLL
+- `log4netdotnet20` — log4net .NET 2.0 build (CLR DLL)
+- `log4netdotnet462` — log4net .NET 4.6.2 build (CLR DLL)
 - `NSISPortable311` — NSIS Portable Version 3.11 executable
 - `puttywin32x86` — PuTTY 32-bit (x86) executable
 - `puttywin64x64` — PuTTY 64-bit (x64) executable
@@ -13,6 +13,7 @@ This directory contains binary test files for fixtures used by the tests in this
 - `sqlite3win32x86` — SQLite 32-bit (x86) DLL
 - `sqlite3win64x64` — SQLite 64-bit (x64) DLL
 - `sqlite3win64arm` — SQLite Windows ARM64 DLL
+- `somepng` — a PNG image file
 
 ## Where the files come from
 
