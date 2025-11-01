@@ -146,3 +146,15 @@ func Test_Putty_Rename(t *testing.T) {
 
 	RunCasesAndCheck(t, cases)
 }
+
+func Test_NSIS_Rename(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "NSISPortable311",
+			ObfuscatedFileName: "./NSISPortable311",
+			ExpectedFileName:   "./NSISPortable311/NSISPortable_3.11_English.paf.exe",
+		},
+	}
+
+	RunCasesAndCheck(t, cases)
+}
