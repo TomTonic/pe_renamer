@@ -195,32 +195,6 @@ func Test_Subfolder(t *testing.T) {
 	RunCasesAndCheck(t, cases, false, false, false, false)
 }
 
-func Test_ExtEqualFlag(t *testing.T) {
-	t.Skip("not yet - changed output")
-	cases := []testhelpers.FixtureObject{
-		{
-			BinFile:            "puttywin32x86",
-			ObfuscatedFileName: "puttywin32x86.exe",
-			ExpectedFileName:   "puttywin32x86.exe/PuTTY.exe",
-			StdoutRegex:        regexp.MustCompile(`.*extension matches: true.*`),
-		},
-		{
-			BinFile:            "sqlite3win32x86",
-			ObfuscatedFileName: "./sqlite3win32x86.dl_",
-			ExpectedFileName:   "./sqlite3win32x86.dl_/sqlite3.dll",
-			StdoutRegex:        regexp.MustCompile(`.*extension matches: false.*`),
-		},
-		{
-			BinFile:            "NSISPortable311",
-			ObfuscatedFileName: "./NSISPortable311",
-			ExpectedFileName:   "./NSISPortable311/NSISPortable_3.11_English.paf.exe",
-			StdoutRegex:        regexp.MustCompile(`.*extension matches: false.*`),
-		},
-	}
-
-	RunCasesAndCheck(t, cases, true, false, false, false)
-}
-
 func Test_CorrectName(t *testing.T) {
 	cases := []testhelpers.FixtureObject{
 		{
@@ -268,4 +242,35 @@ func Test_IgnoreCase(t *testing.T) {
 	}
 
 	RunCasesAndCheck(t, cases, true, false, false, true)
+}
+
+func Test_JustExtAndIgnoreCase(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "putty.exe",
+			ExpectedFileName:   "PuTTY.exe",
+			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: putty.exe ↔ putty.exe.*`),
+		},
+		{
+			BinFile:            "sqlite3win32x86",
+			ObfuscatedFileName: "sqlite3.DLL",
+			ExpectedFileName:   "SQLite3.dll",
+			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: sqlite3.DLL ↔ sqlite3.dll.*`),
+		},
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "putty",
+			ExpectedFileName:   "PuTTY.exe",
+			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: putty ↔ putty.exe.*Renaming .*putty → .*putty.exe.*`),
+		},
+		{
+			BinFile:            "sqlite3win32x86",
+			ObfuscatedFileName: "sqlite3",
+			ExpectedFileName:   "SQLite3.dll",
+			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: sqlite3 ↔ sqlite3.dll.*Renaming .*sqlite3 → .*sqlite3.dll.*`),
+		},
+	}
+
+	RunCasesAndCheck(t, cases, true, false, true, true)
 }
