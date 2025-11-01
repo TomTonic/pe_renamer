@@ -215,3 +215,15 @@ func Test_ExtEqualFlag(t *testing.T) {
 
 	RunCasesAndCheck(t, cases)
 }
+
+func Test_CorrectName(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "PuTTY.exe",
+			ExpectedFileName:   "PuTTY.exe",
+		},
+	}
+
+	RunCasesAndCheck(t, cases)
+}
