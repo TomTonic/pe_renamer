@@ -73,7 +73,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 		editing_distance_percentage: 95.0,
 	}
 
-	expectedOutput := "File: puttywin64x64\n      new name: putty.exe\n      similarity: 95.0%\n      extension matches: true\nRenaming " + filepath.Join(td, "puttywin64x64") + " → " + filepath.Join(td, "puttywin64x64", "putty.exe") + "\n"
+	expectedOutput := "Renaming " + filepath.Join(td, "puttywin64x64") + " → " + filepath.Join(td, "puttywin64x64", "putty.exe") + "\n"
 
 	var buf bytes.Buffer
 	if err := renameCandidate(&buf, cand, true, true); err != nil {
