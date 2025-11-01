@@ -11,6 +11,7 @@ import (
 
 	"os"
 
+	set3 "github.com/TomTonic/Set3"
 	levenshtein "github.com/TomTonic/levenshtein"
 	"github.com/alecthomas/kong"
 	"github.com/google/uuid"
@@ -32,11 +33,15 @@ type RenamingCandidate struct {
 	editing_distance_percentage float64
 }
 
+var commonPEExtensions = set3.FromArray([]string{".exe", ".dll", ".sys", ".ocx", ".cpl", ".drv", ".scr"})
+
 func extractPEInfo(path string, pe *peparser.File) FileInfo {
-	name := filepath.Base(path)
+	name := "*"
+	// 1) Prefer export name when available
 	if pe.Export.Name != "" {
 		name = pe.Export.Name
 	} else {
+		// 2) Then try CLR module/assembly name (if present)
 		if modTable, ok := pe.CLR.MetadataTables[peparser.Module]; ok {
 			if modTable.Content != nil {
 				modTableRows := modTable.Content.([]peparser.ModuleTableRow)
@@ -44,13 +49,45 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 				if len(modTableRows) > 0 {
 					modName := pe.GetStringFromData(modTableRows[0].Name, pe.CLR.MetadataStreams["#Strings"])
 					name = string(modName)
-					// log.Println("Assembly-/Modulname:", name)
-				} else {
-					// log.Println("Keine ModuleTableRows gefunden.")
 				}
 			}
 		}
 	}
+
+	// 3) STRINGFILEINFO
+	if name == "*" {
+		if sfi, err := pe.ParseVersionResourcesForEntries(); err == nil {
+			// StringFileInfo is a map: langcodepage -> map[string]string
+			for _, kv := range sfi {
+				// kv is map[string]string
+				if ofn, ok := kv["OriginalFilename"]; ok && ofn != "" {
+					name = ofn
+					break
+				}
+			}
+		}
+	}
+
+	// 4) fallback to filename if no better name found
+	if name == "*" {
+		name = filepath.Base(path)
+	}
+
+	// ensure that the name has an appropriate extension
+	ext := filepath.Ext(name)
+	if ext == "" || !commonPEExtensions.Contains(strings.ToLower(ext)) {
+		if pe.IsDLL() {
+			name += ".dll"
+		} else if pe.IsEXE() {
+			name += ".exe"
+		} else if pe.IsDriver() {
+			name += ".sys"
+		} else {
+			name += ".bin"
+		}
+	}
+
+	// extract version
 
 	// Use export version if available, otherwise "*"
 	version := "*"
@@ -70,8 +107,23 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 					if len(asmRows) > 0 {
 						asm := asmRows[0]
 						version = fmt.Sprintf("%d.%d.%d.%d", asm.MajorVersion, asm.MinorVersion, asm.BuildNumber, asm.RevisionNumber)
-						// log.Println("Assembly-Version:", version)
 					}
+				}
+			}
+		}
+	}
+
+	// 3) STRINGFILEINFO
+	if version == "*" {
+		if sfi, err := pe.ParseVersionResourcesForEntries(); err == nil {
+			// StringFileInfo is a map: langcodepage -> map[string]string
+			for _, kv := range sfi {
+				if fv, ok := kv["FileVersion"]; ok && fv != "" {
+					version = fv
+					break
+				} else if pv, ok := kv["ProductVersion"]; ok && pv != "" {
+					version = pv
+					break
 				}
 			}
 		}
