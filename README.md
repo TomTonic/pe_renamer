@@ -35,7 +35,6 @@ Suppose you have a directory with files like `_CBA1F54FF12A5D6D107C97BFFEFC2C62`
 1. Identify which of these are valid PE files.
 2. Extract the original filename from the PE metadata (e.g., `log4net.dll` resp. `ATL.dll`).
 3. Create a folders named `_CBA1F54FF12A5D6D107C97BFFEFC2C62/` resp. `Global_VC_ATLANSI_f0.7EBEDD68_AA66_11D2_B980_006097C4DE24` and move the files inside, renaming it to `log4net.dll` resp. `ATL.dll`.
-// ...existing code...
 
 ## Installation
 
