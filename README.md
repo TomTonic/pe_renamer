@@ -1,5 +1,9 @@
 # PE Renamer
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/TomTonic/pe_renamer)](https://goreportcard.com/report/github.com/TomTonic/pe_renamer)
+[![Tests](https://github.com/TomTonic/pe_renamer/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/TomTonic/pe_renamer/actions/workflows/coverage.yml)
+![coverage](https://raw.githubusercontent.com/TomTonic/pe_renamer/badges/.badges/main/coverage.svg)
+
 PE Renamer is a command-line tool designed to scan files or directories, identify Windows Portable Executable (PE) files, and restore their original filenames based on embedded metadata. This helps improve compatibility with SBOM scanners and vulnerability tools like Syft and Grype.
 
 ## What is a PE file?
