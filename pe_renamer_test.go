@@ -23,15 +23,6 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject) {
 	// prepare fixtures
 	testhelpers.CopyCasesToDir(t, cases, td)
 
-	// capture directory tree before
-	beforeDirTree, err := testhelpers.DirTree(t, td)
-	if err != nil {
-		t.Fatalf("DirTree before failed: %v", err)
-	}
-	if int(beforeDirTree.Size()) != len(cases) {
-		t.Fatalf("unexpected number of files in test dir before Run; expected %d, got %v", len(cases), beforeDirTree)
-	}
-
 	var stdout, stderr strings.Builder
 	if err := Run(td, true, false, &stdout, &stderr); err != nil {
 		t.Fatalf("Run returned error: %v\nstderr: %s", err, stderr.String())
@@ -167,6 +158,33 @@ func Test_PNG_Rename(t *testing.T) {
 			ObfuscatedFileName: "./somepng",
 			ExpectedFileName:   "./somepng",
 			StderrRegex:        regexp.MustCompile(`.*Info: file is not in PE format: DOS Header magic not found.*`),
+		},
+	}
+
+	RunCasesAndCheck(t, cases)
+}
+
+func Test_Subfolder(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "somepng",
+			ObfuscatedFileName: "./sub/abc",
+			ExpectedFileName:   "./sub/abc",
+		},
+		{
+			BinFile:            "somepng",
+			ObfuscatedFileName: "./xyz",
+			ExpectedFileName:   "./xyz",
+		},
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "./sub/puttywin32x86",
+			ExpectedFileName:   "./sub/puttywin32x86/PuTTY.exe",
+		},
+		{
+			BinFile:            "sqlite3win32x86",
+			ObfuscatedFileName: "./sqlite3win32x86",
+			ExpectedFileName:   "./sqlite3win32x86/sqlite3.dll",
 		},
 	}
 
