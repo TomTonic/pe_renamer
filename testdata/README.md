@@ -1,8 +1,8 @@
-# testdata: downloaded binary fixtures
+# testdata: PE-files for test fixtures
 
 This directory contains binary test files for fixtures used by the tests in this repository. These valid PE-files are only used in test fixtures. This repository does not redistribute them.
 
-## Included fixture files (as expected by `check_fixtures_test.go`):
+## Included fixture files (as expected by `check_fixtures_test.go`)
 
 - `log4netdotnet20` — log4net .NET 2.0 build (named after the original DLL inside)
 - `log4netdotnet462` — log4net .NET 4.6.2 build
