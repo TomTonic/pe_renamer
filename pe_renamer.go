@@ -19,10 +19,9 @@ import (
 )
 
 type FileInfo struct {
-	Path       string
-	Name       string
-	Version    string
-	hasExports bool
+	Path    string
+	Name    string
+	Version string
 }
 
 type RenamingCandidate struct {
