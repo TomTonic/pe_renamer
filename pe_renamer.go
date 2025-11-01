@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"sort"
@@ -31,8 +32,6 @@ type RenamingCandidate struct {
 	matching_extension          bool
 	editing_distance_percentage float64
 }
-
-var candidates = make(map[string]RenamingCandidate, 0)
 
 func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	name := filepath.Base(path)
@@ -86,7 +85,7 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	}
 }
 
-func SearchFiles(path string, verbose bool) error {
+func SearchFiles(path string, verbose bool, candidates map[string]RenamingCandidate) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -100,21 +99,21 @@ func SearchFiles(path string, verbose bool) error {
 		}
 		for _, e := range entries {
 			if e.IsDir() {
-				err := SearchFiles(filepath.Join(path, e.Name()), verbose)
+				err := SearchFiles(filepath.Join(path, e.Name()), verbose, candidates)
 				if err != nil {
 					return err
 				}
 			} else {
-				processFile(filepath.Join(path, e.Name()), verbose)
+				processFile(filepath.Join(path, e.Name()), verbose, candidates)
 			}
 		}
 	} else {
-		processFile(path, verbose)
+		processFile(path, verbose, candidates)
 	}
 	return nil
 }
 
-func processFile(filename string, verbose bool) {
+func processFile(filename string, verbose bool, candidates map[string]RenamingCandidate) {
 	if verbose {
 		log.Printf("File: %s\n", filename)
 	}
@@ -185,18 +184,17 @@ func processFile(filename string, verbose bool) {
 	candidates[filename] = candidate
 }
 
-func main() {
-	var cli struct {
-		Verbose bool   `short:"v" help:"Include parse/open errors in output"`
-		Path    string `arg:"" required:"" help:"Path to file or directory to search"`
-	}
+// Run executes the main renaming-detection logic and writes human-readable
+// operations to out (stdout) and logs to errWriter (stderr). It returns an error
+// if searching or parsing fails.
+func Run(path string, verbose bool, out io.Writer, errWriter io.Writer) error {
+	// set log output to errWriter so verbose parse errors are captured there
+	log.SetOutput(errWriter)
 
-	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
-	_ = ctx
+	candidates := make(map[string]RenamingCandidate, 0)
 
-	err := SearchFiles(cli.Path, cli.Verbose)
-	if err != nil {
-		log.Fatalf("Searching files: %v", err)
+	if err := SearchFiles(path, verbose, candidates); err != nil {
+		return err
 	}
 
 	candidateList := make([]RenamingCandidate, 0, len(candidates))
@@ -207,14 +205,29 @@ func main() {
 
 	for _, candidate := range candidateList {
 		tempname := uuid.New().String()
-		fmt.Printf("# =========================================\n")
-		fmt.Printf("# Original File Name: %s\n", candidate.OriginalName)
-		fmt.Printf("# New Name:           %s\n", candidate.NewName)
-		fmt.Printf("# Matching Ext:       %v\n", candidate.matching_extension)
-		fmt.Printf("# Similarity:        %.1f%%\n", candidate.editing_distance_percentage)
-		fmt.Printf("mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)), strconv.Quote(filepath.Join(candidate.Path, tempname)))
-		fmt.Printf("mkdir %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)))
-		fmt.Printf("mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, tempname)), strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName, candidate.NewName)))
+		fmt.Fprintf(out, "# =========================================\n")
+		fmt.Fprintf(out, "# Original File Name: %s\n", candidate.OriginalName)
+		fmt.Fprintf(out, "# New Name:           %s\n", candidate.NewName)
+		fmt.Fprintf(out, "# Matching Ext:       %v\n", candidate.matching_extension)
+		fmt.Fprintf(out, "# Similarity:        %.1f%%\n", candidate.editing_distance_percentage)
+		fmt.Fprintf(out, "mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)), strconv.Quote(filepath.Join(candidate.Path, tempname)))
+		fmt.Fprintf(out, "mkdir %s\n", strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName)))
+		fmt.Fprintf(out, "mv %s %s\n", strconv.Quote(filepath.Join(candidate.Path, tempname)), strconv.Quote(filepath.Join(candidate.Path, candidate.OriginalName, candidate.NewName)))
+	}
+	return nil
+}
+
+func main() {
+	var cli struct {
+		Verbose bool   `short:"v" help:"Include parse/open errors in output"`
+		Path    string `arg:"" required:"" help:"Path to file or directory to search"`
+	}
+
+	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
+	_ = ctx
+
+	if err := Run(cli.Path, cli.Verbose, os.Stdout, os.Stderr); err != nil {
+		log.Fatalf("run: %v", err)
 	}
 }
 
