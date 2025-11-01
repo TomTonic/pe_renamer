@@ -230,3 +230,21 @@ func Test_CorrectName(t *testing.T) {
 
 	RunCasesAndCheck(t, cases, true, false, false)
 }
+
+func Test_JustExt(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "puttywin32x86",
+			ExpectedFileName:   "puttywin32x86.exe",
+			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: puttywin32x86 ↔ puttywin32x86.exe.*Renaming .*puttywin32x86 → .*puttywin32x86.exe.*`),
+		},
+		{
+			BinFile:            "sqlite3win32x86",
+			ObfuscatedFileName: "sqlite3win32x86",
+			ExpectedFileName:   "sqlite3win32x86.dll",
+		},
+	}
+
+	RunCasesAndCheck(t, cases, true, false, true)
+}
