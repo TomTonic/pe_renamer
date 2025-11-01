@@ -25,3 +25,12 @@ jobs:
 
       - name: Run tests and generate coverage report
         run: go test ./. -coverprofile=./cover.out -covermode=atomic -coverpkg=./.
+
+      - name: Generate coverage badge
+        uses: vladopajic/go-test-coverage@cc5012c2cfa84542e02b079141958a885861d326 # v2.17.0
+        with:
+          profile: cover.out
+          local-prefix: github.com/TomTonic/pe_renamer
+          threshold-total: 75
+          git-branch: badges
+          git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
