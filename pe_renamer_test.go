@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ import (
 // RunCasesAndCheck runs Run() in-process against the provided FixtureCase slice.
 // It returns stdout, stderr and the testdir (caller must cleanup).
 func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject) {
-	t.Helper()
+	//t.Helper()
 	td := t.TempDir()
 	defer os.RemoveAll(td)
 
@@ -48,10 +49,10 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject) {
 	// check optional regexes per case
 	for _, c := range cases {
 		if c.StdoutRegex != nil && !c.StdoutRegex.MatchString(outStr) {
-			t.Fatalf("stdout did not match regex for fixture %s; regex=%v\nstdout:\n%s", c.BinFile, c.StdoutRegex, outStr)
+			t.Fatalf("stdout did not match regex for fixture %s.\nregex:  %v\nstdout: %s\n", c.BinFile, c.StdoutRegex, outStr)
 		}
 		if c.StderrRegex != nil && !c.StderrRegex.MatchString(errStr) {
-			t.Fatalf("stderr did not match regex for fixture %s; regex=%v\nstderr:\n%s", c.BinFile, c.StderrRegex, errStr)
+			t.Fatalf("stderr did not match regex for fixture %s.\nregex:  %v\nstderr: %s\n", c.BinFile, c.StderrRegex, errStr)
 		}
 	}
 
@@ -153,6 +154,19 @@ func Test_NSIS_Rename(t *testing.T) {
 			BinFile:            "NSISPortable311",
 			ObfuscatedFileName: "./NSISPortable311",
 			ExpectedFileName:   "./NSISPortable311/NSISPortable_3.11_English.paf.exe",
+		},
+	}
+
+	RunCasesAndCheck(t, cases)
+}
+
+func Test_PNG_Rename(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "somepng",
+			ObfuscatedFileName: "./somepng",
+			ExpectedFileName:   "./somepng",
+			StderrRegex:        regexp.MustCompile(`.*Info: file is not in PE format: DOS Header magic not found.*`),
 		},
 	}
 
