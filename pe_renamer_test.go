@@ -84,6 +84,7 @@ func Test_Sqlite3DLL_Rename(t *testing.T) {
 			BinFile:            "sqlite3win32x86",
 			ObfuscatedFileName: "./sqlite3win32x86",
 			ExpectedFileName:   "./sqlite3win32x86/sqlite3.dll",
+			StdoutRegex:        regexp.MustCompile(`.*Given/expected name: sqlite3win32x86 ↔ sqlite3.dll.*`),
 		},
 		{
 			BinFile:            "sqlite3win64x64",
@@ -157,7 +158,7 @@ func Test_PNG_Rename(t *testing.T) {
 			BinFile:            "somepng",
 			ObfuscatedFileName: "./somepng",
 			ExpectedFileName:   "./somepng",
-			StderrRegex:        regexp.MustCompile(`.*Info: file is not in PE format: DOS Header magic not found.*`),
+			StdoutRegex:        regexp.MustCompile(`.*File is not in PE format: DOS Header magic not found.*`),
 		},
 	}
 
@@ -222,6 +223,7 @@ func Test_CorrectName(t *testing.T) {
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "PuTTY.exe",
 			ExpectedFileName:   "PuTTY.exe",
+			StdoutRegex:        regexp.MustCompile(`.*Given/expected name: PuTTY.exe ↔ PuTTY.exe\n.*Similarity: 100\.0%.*`),
 		},
 	}
 

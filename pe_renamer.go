@@ -135,7 +135,7 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	}
 }
 
-func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate) error {
+func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -150,29 +150,29 @@ func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandi
 		for _, e := range entries {
 			fullChildName := filepath.Join(path, e.Name())
 			if e.IsDir() {
-				err := SearchFiles(fullChildName, verbose, candidates)
+				err := SearchFiles(fullChildName, verbose, candidates, out)
 				if err != nil {
 					return err
 				}
 			} else {
-				processFile(fullChildName, verbose, candidates)
+				processFile(fullChildName, verbose, candidates, out)
 			}
 		}
 	} else {
-		processFile(path, verbose, candidates)
+		processFile(path, verbose, candidates, out)
 	}
 	return nil
 }
 
-func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate) {
+func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer) {
 	if verbose {
-		log.Printf("File: %s\n", filename)
+		fmt.Fprintf(out, "File: %s\n", filename)
 	}
 
 	pe, err := peparser.New(filename, &peparser.Options{})
 	if err != nil {
 		if verbose {
-			log.Printf("  Error opening file: %v\n", err)
+			log.Printf("Error opening file %s: %v\n", filename, err)
 		}
 		return
 	}
@@ -183,7 +183,7 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 
 	if err := pe.Parse(); err != nil {
 		if verbose {
-			log.Printf("  Info: file is not in PE format: %v\n", err)
+			fmt.Fprintf(out, "  File is not in PE format: %v\n", err)
 		}
 		return
 	}
@@ -200,8 +200,8 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	expectedExt = strings.ToLower(expectedExt)
 	expectedName = expectedNameWithoutExt + expectedExt
 
-	if givenName == expectedName {
-		return
+	if verbose {
+		fmt.Fprintf(out, "  Given/expected name: %s ↔ %s\n", givenName, expectedName)
 	}
 
 	extEqual := false
@@ -227,13 +227,22 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	if equality < 0 {
 		equality = 0
 	}
+	equality *= 100
+
+	if verbose {
+		fmt.Fprintf(out, "  Similarity: %.1f%%\n", equality)
+	}
+
+	if givenName == expectedName {
+		return
+	}
 
 	candidate := RenamingCandidate{
 		Path:                        originalPath,
 		OriginalName:                givenName,
 		NewName:                     expectedName,
 		matching_extension:          extEqual,
-		editing_distance_percentage: equality * 100,
+		editing_distance_percentage: equality,
 	}
 
 	(*candidates)[filename] = candidate
@@ -248,7 +257,7 @@ func Run(path string, verbose bool, dryRun bool, out io.Writer, errWriter io.Wri
 
 	candidates := make(map[string]RenamingCandidate, 0)
 
-	if err := SearchFiles(path, verbose, &candidates); err != nil {
+	if err := SearchFiles(path, verbose, &candidates, out); err != nil {
 		return err
 	}
 
