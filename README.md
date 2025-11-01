@@ -68,8 +68,10 @@ pe_renamer [flags] <path>
 
 ### Common flags
 
-- --dry-run, -n    : don't perform filesystem changes, only print planned mkdir/mv operations
-- --verbose        : print parser/log messages to stderr
+- --dry-run, -n    : don't perform filesystem changes, only print planned renaming operations
+- --verbose, -v    : print verbose output during processing
+- --ignoreCase, -i : perform filename comparisons case-insensitively. When set, name-equality checks use case-insensitive matching (useful on Windows-like collated filesystems).
+- --justExt, -e    : only adjust/append the file extension; do not change the base filename. Useful when you only need to restore an extension (e.g. add `.dll` to obfuscated binaries) without renaming the file's base name.
 
 ### Examples
 
