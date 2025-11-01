@@ -84,7 +84,7 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	}
 }
 
-func SearchFiles(path string, verbose bool, candidates map[string]RenamingCandidate) error {
+func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -97,13 +97,14 @@ func SearchFiles(path string, verbose bool, candidates map[string]RenamingCandid
 			return err
 		}
 		for _, e := range entries {
+			fullChildName := filepath.Join(path, e.Name())
 			if e.IsDir() {
-				err := SearchFiles(filepath.Join(path, e.Name()), verbose, candidates)
+				err := SearchFiles(fullChildName, verbose, candidates)
 				if err != nil {
 					return err
 				}
 			} else {
-				processFile(filepath.Join(path, e.Name()), verbose, candidates)
+				processFile(fullChildName, verbose, candidates)
 			}
 		}
 	} else {
@@ -112,7 +113,7 @@ func SearchFiles(path string, verbose bool, candidates map[string]RenamingCandid
 	return nil
 }
 
-func processFile(filename string, verbose bool, candidates map[string]RenamingCandidate) {
+func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate) {
 	if verbose {
 		log.Printf("File: %s\n", filename)
 	}
@@ -184,7 +185,7 @@ func processFile(filename string, verbose bool, candidates map[string]RenamingCa
 		editing_distance_percentage: equality * 100,
 	}
 
-	candidates[filename] = candidate
+	(*candidates)[filename] = candidate
 }
 
 // Run executes the main renaming-detection logic and writes human-readable
@@ -196,7 +197,7 @@ func Run(path string, verbose bool, dryRun bool, out io.Writer, errWriter io.Wri
 
 	candidates := make(map[string]RenamingCandidate, 0)
 
-	if err := SearchFiles(path, verbose, candidates); err != nil {
+	if err := SearchFiles(path, verbose, &candidates); err != nil {
 		return err
 	}
 
