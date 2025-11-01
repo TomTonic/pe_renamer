@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -77,7 +78,11 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject) {
 	//expectedDirTree := set3.FromArray([]string{"D sqlite3win32x86", "F sqlite3win32x86\\sqlite3.dll"})
 
 	if !expectedDirTree.Equals(afterDirTree) {
-		t.Fatalf("unexpected directory tree after Run; expected=%v got=%v", expectedDirTree.ToArray(), afterDirTree.ToArray())
+		is := afterDirTree.ToArray()
+		shouldbe := expectedDirTree.ToArray()
+		slices.Sort(is)
+		slices.Sort(shouldbe)
+		t.Fatalf("unexpected directory tree after Run().\nexpected: %v\ngot:      %v\n", shouldbe, is)
 	}
 }
 
@@ -114,6 +119,28 @@ func Test_Log4netDLL_Rename(t *testing.T) {
 			BinFile:            "log4netdotnet462",
 			ObfuscatedFileName: "./log4netdotnet462",
 			ExpectedFileName:   "./log4netdotnet462/log4net.dll",
+		},
+	}
+
+	RunCasesAndCheck(t, cases)
+}
+
+func Test_Putty_Rename(t *testing.T) {
+	cases := []testhelpers.FixtureObject{
+		{
+			BinFile:            "puttywin32x86",
+			ObfuscatedFileName: "./puttywin32x86",
+			ExpectedFileName:   "./puttywin32x86/PuTTY.exe",
+		},
+		{
+			BinFile:            "puttywin64x64",
+			ObfuscatedFileName: "./puttywin64x64",
+			ExpectedFileName:   "./puttywin64x64/PuTTY.exe",
+		},
+		{
+			BinFile:            "puttywin64arm",
+			ObfuscatedFileName: "./puttywin64arm",
+			ExpectedFileName:   "./puttywin64arm/PuTTY.exe",
 		},
 	}
 
