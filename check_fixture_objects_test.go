@@ -18,6 +18,7 @@ import (
 //   - sqlite3win32x86
 //   - sqlite3win64x64
 //   - sqlite3win64arm
+//   - NSISPortable311
 //
 // The test fails if any file is missing or if the file cannot be parsed as PE.
 func TestFixtureObjectsPresentAndParseable(t *testing.T) {
@@ -36,6 +37,7 @@ func TestFixtureObjectsPresentAndParseable(t *testing.T) {
 		"sqlite3win32x86",
 		"sqlite3win64x64",
 		"sqlite3win64arm",
+		"NSISPortable311",
 	}
 
 	for _, name := range files {
