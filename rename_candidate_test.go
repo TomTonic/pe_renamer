@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"pe_renamer/testhelpers"
@@ -15,7 +14,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	defer os.RemoveAll(td)
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, []string{"puttywin64x64"}, td, nil)
+	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// capture directory tree before
 	before, err := testhelpers.DirTree(t, td)
@@ -47,8 +46,8 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DirTree after failed: %v", err)
 	}
-	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("temp dir changed during dry-run (before=%v after=%v)", before, after)
+	if !before.Equals(after) {
+		t.Fatalf("temp dir changed during dry-run (before=%v after=%v)", before.ToArray(), after.ToArray())
 	}
 }
 
@@ -57,7 +56,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	defer os.RemoveAll(td)
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, []string{"puttywin64x64"}, td, nil)
+	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// capture directory tree before
 	before, err := testhelpers.DirTree(t, td)
@@ -91,8 +90,8 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DirTree after failed: %v", err)
 	}
-	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("temp dir changed during dry-run (before=%v after=%v)", before, after)
+	if !before.Equals(after) {
+		t.Fatalf("temp dir changed during dry-run (before=%v after=%v)", before.ToArray(), after.ToArray())
 	}
 }
 
@@ -101,7 +100,7 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 	defer os.RemoveAll(td)
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, []string{"puttywin64x64"}, td, nil)
+	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	sha256Original, err := testhelpers.FileSHA256(filepath.Join(td, "puttywin64x64"))
 	if err != nil {
