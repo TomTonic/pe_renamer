@@ -374,20 +374,24 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 
 func main() {
 	var cli struct {
-		Version    struct{} `cmd:"" help:"Print version and exit"`
-		Verbose    bool     `short:"v" help:"Print verbose output during processing"`
-		DryRun     bool     `short:"n" help:"Don't perform writes; only show planned operations (dry-run)"`
-		IgnoreCase bool     `short:"i" help:"Ignore case when comparing filenames"`
-		JustExt    bool     `short:"e" help:"Only append an appropriate extension without renaming the base filename"`
-		Path       string   `arg:"" required:"" help:"Path to file or directory to search"`
+		Version    bool   `help:"Print version and exit" name:"version" short:"V"`
+		Verbose    bool   `short:"v" help:"Print verbose output during processing"`
+		DryRun     bool   `short:"n" help:"Don't perform writes; only show planned operations (dry-run)"`
+		IgnoreCase bool   `short:"i" help:"Ignore case when comparing filenames"`
+		JustExt    bool   `short:"e" help:"Only append an appropriate extension without renaming the base filename"`
+		Path       string `arg:"" optional:"" help:"Path to file or directory to search"`
 	}
 
-	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
-
-	// support `version` subcommand
-	if ctx.Command() == "version" {
+	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype."))
+	_ = ctx
+	if cli.Version {
 		PrintVersion(os.Stdout)
 		return
+	}
+
+	if cli.Path == "" {
+		// no path provided
+		log.Fatalf("path is required (use --version to show build info)")
 	}
 
 	if err := Run(os.Stdout, os.Stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase); err != nil {
