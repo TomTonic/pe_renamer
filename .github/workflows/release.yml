@@ -1,0 +1,110 @@
+name: Build and upload release binaries
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+            osname: windows_x64
+          - goos: linux
+            goarch: amd64
+            ext: ""
+            osname: linux_x64
+          - goos: darwin
+            goarch: arm64
+            ext: ""
+            osname: macos_arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -e
+          mkdir -p dist
+          mkdir -p dist/${{ matrix.osname }}
+          # Build with deterministic binary name: pe_renamer (pe_renamer.exe on Windows)
+          BIN=pe_renamer
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BIN=${BIN}.exe
+          fi
+          echo "Building $BIN (GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }})"
+          go build -o dist/${{ matrix.osname }}/${BIN} ./...
+
+      - name: Zip binary (named per OS + tag) and create checksum
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd dist/${{ matrix.osname }}
+          BIN=pe_renamer
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BIN=${BIN}.exe
+          fi
+          # sanitize tag for filenames (replace unsafe chars with '-')
+          SAN_TAG=$(echo "$TAG" | sed 's#[^A-Za-z0-9._-]#-#g')
+          ZIPNAME=pe_renamer_${SAN_TAG}_${{ matrix.osname }}.zip
+          if [ ! -f "$BIN" ]; then
+            echo "Built binary $BIN not found in dist/${{ matrix.osname }}" >&2
+            ls -la
+            exit 1
+          fi
+          zip -j "../$ZIPNAME" "$BIN"
+          # create sha256 checksum next to the zip (hex only)
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "../$ZIPNAME" | awk '{print $1}' > "../$ZIPNAME.sha256"
+          else
+            shasum -a 256 "../$ZIPNAME" | awk '{print $1}' > "../$ZIPNAME.sha256"
+          fi
+
+      - name: Upload artifact (zip + sha256)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.osname }}
+          path: |
+            dist/pe_renamer_*_${{ matrix.osname }}.zip
+            dist/pe_renamer_*_${{ matrix.osname }}.zip.sha256
+
+  publish:
+    name: Attach artifacts to Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: List downloaded artifacts
+        run: ls -la dist
+
+      - name: Upload release assets
+        # softprops/action-gh-release creates/updates the GitHub Release and uploads files
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
