@@ -66,7 +66,7 @@ func Test_CLI_DryRunOnNonPE(t *testing.T) {
 	cmd := exec.Command(e2eBin, "-n", "-v", target)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
-		// the program may exit non-zero even on non-PE files in dry-run; we only care about output
+		_ = err
 	}
 	out := string(b)
 	if !strings.Contains(out, "File is not in PE format") {

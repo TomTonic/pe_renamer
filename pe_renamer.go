@@ -373,6 +373,13 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 }
 
 func main() {
+	os.Exit(runCli(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+// runCli executes the CLI logic for the given args and writes to the provided
+// stdout/stderr. It returns an exit code that can be passed to os.Exit.
+func runCli(args []string, stdout, stderr io.Writer) int {
+	// prepare CLI struct similar to main
 	var cli struct {
 		Version    bool   `help:"Print version and exit" name:"version" short:"V"`
 		Verbose    bool   `short:"v" help:"Print verbose output during processing"`
@@ -382,21 +389,37 @@ func main() {
 		Path       string `arg:"" optional:"" help:"Path to file or directory to search"`
 	}
 
-	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype."))
+	// Temporarily set os.Args so kong parses the provided args slice.
+	savedArgs := os.Args
+	defer func() { os.Args = savedArgs }()
+	if len(savedArgs) > 0 {
+		os.Args = append([]string{savedArgs[0]}, args...)
+	} else {
+		os.Args = append([]string{"pe_renamer"}, args...)
+	}
+
+	// Parse using kong but direct output to provided writers.
+	ctx := kong.Parse(&cli,
+		kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype."),
+		kong.Writers(stdout, stderr),
+	)
 	_ = ctx
+
 	if cli.Version {
-		PrintVersion(os.Stdout)
-		return
+		PrintVersion(stdout)
+		return 0
 	}
 
 	if cli.Path == "" {
-		// no path provided
-		log.Fatalf("path is required (use --version to show build info)")
+		_, _ = fmt.Fprintln(stderr, "path is required (use --version to show build info)")
+		return 2
 	}
 
-	if err := Run(os.Stdout, os.Stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase); err != nil {
-		log.Fatalf("run: %v", err)
+	if err := Run(stdout, stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase); err != nil {
+		_, _ = fmt.Fprintf(stderr, "run: %v\n", err)
+		return 1
 	}
+	return 0
 }
 
 func sortCandidates(candidates []RenamingCandidate) {
