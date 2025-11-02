@@ -18,6 +18,14 @@ import (
 	peparser "github.com/saferwall/pe"
 )
 
+// mustClose closes the provided io.Closer and logs any error.
+// Use this in defers to make intent explicit and surface closing errors.
+func mustClose(c io.Closer) {
+	if err := c.Close(); err != nil {
+		log.Printf("close: %v", err)
+	}
+}
+
 type FileInfo struct {
 	Path    string
 	Name    string
@@ -178,7 +186,7 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	}
 	// ensure any resources used by the parser are released (some backends keep files open)
 	if closer, ok := any(pe).(interface{ Close() error }); ok {
-		defer func() { _ = closer.Close() }()
+		defer mustClose(closer)
 	}
 
 	if err := pe.Parse(); err != nil {

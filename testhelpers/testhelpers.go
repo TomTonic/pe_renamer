@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +13,14 @@ import (
 
 	set3 "github.com/TomTonic/Set3"
 )
+
+// mustClose closes the provided io.Closer and logs any error.
+// Use this in defers to make intent explicit and surface closing errors.
+func mustClose(c io.Closer) {
+	if err := c.Close(); err != nil {
+		log.Printf("close: %v", err)
+	}
+}
 
 // findRepoRoot searches parent directories for a go.mod file and returns the directory
 // containing it. This helps resolving paths relative to the repository root.
@@ -79,13 +88,13 @@ func CopyFixture(t *testing.T, src, dst string) {
 	if err != nil {
 		t.Fatalf("CopyFixture open src %s: %v", src, err)
 	}
-	defer func() { _ = srcFile.Close() }()
+	defer mustClose(srcFile)
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		t.Fatalf("CopyFixture create dst %s: %v", dst, err)
 	}
-	defer func() { _ = dstFile.Close() }()
+	defer mustClose(dstFile)
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		t.Fatalf("CopyFixture copy from %s to %s: %v", src, dst, err)
@@ -173,7 +182,7 @@ func FileSHA256(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = f.Close() }()
+	defer mustClose(f)
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
