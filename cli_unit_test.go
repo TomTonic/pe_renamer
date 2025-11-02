@@ -47,3 +47,18 @@ func TestRunCli_DryRunNonPE(t *testing.T) {
 		t.Fatalf("expected non-PE message in output, got:\n%s", combined)
 	}
 }
+
+func TestRunCli_NonexistentPath(t *testing.T) {
+	var out, errb strings.Builder
+	// create a temp dir and point to a child that does not exist
+	td := t.TempDir()
+	target := filepath.Join(td, "this-path-should-not-exist-12345")
+
+	code := runCli([]string{target}, &out, &errb)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit code for nonexistent path; got 0")
+	}
+	if !strings.Contains(errb.String(), "no such file or directory") {
+		t.Fatalf("expected 'no such file or directory' in stderr, got: %s", errb.String())
+	}
+}

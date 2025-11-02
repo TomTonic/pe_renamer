@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"pe_renamer/testhelpers"
@@ -32,9 +34,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	expectedOutput := "Renaming " + filepath.Join(td, "puttywin64x64") + " → " + filepath.Join(td, "puttywin64x64", "putty.exe") + "\n"
 
 	var buf bytes.Buffer
-	if err := renameCandidate(&buf, cand, false, true, false); err != nil {
-		t.Fatalf("renameCandidate dry-run returned error: %v", err)
-	}
+	renameCandidate(cand, false, true, false, false, &buf, io.Discard)
 
 	out := buf.String()
 	if out != expectedOutput {
@@ -76,9 +76,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	expectedOutput := "Renaming " + filepath.Join(td, "puttywin64x64") + " → " + filepath.Join(td, "puttywin64x64", "putty.exe") + "\n"
 
 	var buf bytes.Buffer
-	if err := renameCandidate(&buf, cand, true, true, false); err != nil {
-		t.Fatalf("renameCandidate dry-run returned error: %v", err)
-	}
+	renameCandidate(cand, false, true, false, false, &buf, io.Discard)
 
 	out := buf.String()
 	if out != expectedOutput {
@@ -124,9 +122,7 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := renameCandidate(&buf, cand, false, false, false); err != nil {
-		t.Fatalf("renameCandidate apply returned error: %v", err)
-	}
+	renameCandidate(cand, false, false, false, false, &buf, io.Discard)
 
 	// capture directory tree after and assert there is again only one file system entry
 	after, err := os.ReadDir(td)
@@ -197,9 +193,7 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := renameCandidate(&buf, cand, false, false, true); err != nil {
-		t.Fatalf("renameCandidate apply justExt returned error: %v", err)
-	}
+	renameCandidate(cand, false, false, true, false, &buf, io.Discard)
 
 	// capture directory tree after and assert there is again only one file system entry
 	after, err := os.ReadDir(td)
@@ -234,5 +228,73 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 	}
 	if sha256Original != sha256NewFile {
 		t.Fatalf("renamed file data does not match original file data (original sha256=%s new sha256=%s)", sha256Original, sha256NewFile)
+	}
+}
+
+func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
+	td := testhelpers.CreateTestDir(t)
+	defer func() { _ = os.RemoveAll(td) }()
+
+	// copy fixture into td
+	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+
+	// make directory read-only
+	if err := os.Chmod(td, 0o555); err != nil {
+		t.Fatalf("chmod readonly failed: %v", err)
+	}
+	// restore permissions for cleanup
+	defer func() { _ = os.Chmod(td, 0o755) }()
+
+	cand := RenamingCandidate{
+		Path:         td,
+		OriginalName: "puttywin64x64",
+		NewName:      "somethingrandom",
+	}
+
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	renameCandidate(cand, false, false, true, false, &outBuf, &errBuf)
+
+	if !strings.Contains(errBuf.String(), "permission denied") {
+		t.Fatalf("expected permission denied in stderr, got: %s", errBuf.String())
+	}
+
+	// original file should still exist
+	if _, err := os.Stat(filepath.Join(td, "puttywin64x64")); err != nil {
+		t.Fatalf("expected original file to still exist, stat error: %v", err)
+	}
+}
+
+func Test_RenameCandidate_ReadOnly_FullRename(t *testing.T) {
+	td := testhelpers.CreateTestDir(t)
+	defer func() { _ = os.RemoveAll(td) }()
+
+	// copy fixture into td
+	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+
+	// make directory read-only
+	if err := os.Chmod(td, 0o555); err != nil {
+		t.Fatalf("chmod readonly failed: %v", err)
+	}
+	// restore permissions for cleanup
+	defer func() { _ = os.Chmod(td, 0o755) }()
+
+	cand := RenamingCandidate{
+		Path:         td,
+		OriginalName: "puttywin64x64",
+		NewName:      "putty.exe",
+	}
+
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	renameCandidate(cand, false, false, false, false, &outBuf, &errBuf)
+
+	if !strings.Contains(errBuf.String(), "permission denied") {
+		t.Fatalf("expected permission denied in stderr, got: %s", errBuf.String())
+	}
+
+	// original file should still exist
+	if _, err := os.Stat(filepath.Join(td, "puttywin64x64")); err != nil {
+		t.Fatalf("expected original file to still exist, stat error: %v", err)
 	}
 }

@@ -24,9 +24,7 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 	testhelpers.CopyCasesToDir(t, cases, td)
 
 	var stdout, stderr strings.Builder
-	if err := Run(&stdout, &stderr, td, verbose, dryRun, justExt, ignoreCase); err != nil {
-		t.Fatalf("Run returned error: %v\nstderr: %s", err, stderr.String())
-	}
+	Run(td, verbose, dryRun, justExt, ignoreCase, &stdout, &stderr)
 
 	outStr := stdout.String()
 	errStr := stderr.String()
@@ -87,7 +85,7 @@ func Test_Sqlite3DLL_Rename(t *testing.T) {
 			BinFile:            "sqlite3win32x86",
 			ObfuscatedFileName: "./sqlite3win32x86",
 			ExpectedFileName:   "./sqlite3win32x86/sqlite3.dll",
-			StdoutRegex:        regexp.MustCompile(`.*Given/expected name: sqlite3win32x86 ↔ sqlite3.dll.*`),
+			StdoutRegex:        regexp.MustCompile(`.*Expected name: sqlite3.dll.*`),
 		},
 		{
 			BinFile:            "sqlite3win64x64",
@@ -201,7 +199,7 @@ func Test_CorrectName(t *testing.T) {
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "PuTTY.exe",
 			ExpectedFileName:   "PuTTY.exe",
-			StdoutRegex:        regexp.MustCompile(`.*Given/expected name: PuTTY.exe ↔ PuTTY.exe\n.*Similarity: 100\.0%.*`),
+			StdoutRegex:        regexp.MustCompile(`.*Expected name: PuTTY.exe\n.*Similarity: 100\.0%.*`),
 		},
 	}
 
@@ -214,7 +212,7 @@ func Test_JustExt(t *testing.T) {
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "puttywin32x86",
 			ExpectedFileName:   "puttywin32x86.exe",
-			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: puttywin32x86 ↔ puttywin32x86.exe.*Renaming .*puttywin32x86 → .*puttywin32x86.exe.*`),
+			StdoutRegex:        regexp.MustCompile(`(?s).*Expected name: puttywin32x86.exe.*Renaming .*puttywin32x86 → .*puttywin32x86.exe.*`),
 		},
 		{
 			BinFile:            "sqlite3win32x86",
@@ -232,7 +230,7 @@ func Test_IgnoreCase(t *testing.T) {
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "putty.exe",
 			ExpectedFileName:   "PuTTY.exe",
-			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: putty.exe ↔ PuTTY.exe.*`),
+			StdoutRegex:        regexp.MustCompile(`(?s).*Expected name: PuTTY.exe.*`),
 		},
 		{
 			BinFile:            "sqlite3win32x86",
@@ -250,25 +248,25 @@ func Test_JustExtAndIgnoreCase(t *testing.T) {
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "putty.exe",
 			ExpectedFileName:   "PuTTY.exe",
-			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: putty.exe ↔ putty.exe.*`),
+			StdoutRegex:        regexp.MustCompile(`(?s).*Expected name: putty.exe.*`),
 		},
 		{
 			BinFile:            "sqlite3win32x86",
 			ObfuscatedFileName: "sqlite3.DLL",
 			ExpectedFileName:   "SQLite3.dll",
-			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: sqlite3.DLL ↔ sqlite3.dll.*`),
+			StdoutRegex:        regexp.MustCompile(`(?s).*Expected name: sqlite3.dll.*`),
 		},
 		{
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "putty",
 			ExpectedFileName:   "PuTTY.exe",
-			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: putty ↔ putty.exe.*Renaming .*putty → .*putty.exe.*`),
+			StdoutRegex:        regexp.MustCompile(`(?s).*Expected name: putty.exe.*Renaming .*putty → .*putty.exe.*`),
 		},
 		{
 			BinFile:            "sqlite3win32x86",
 			ObfuscatedFileName: "sqlite3",
 			ExpectedFileName:   "SQLite3.dll",
-			StdoutRegex:        regexp.MustCompile(`(?s).*Given/expected name: sqlite3 ↔ sqlite3.dll.*Renaming .*sqlite3 → .*sqlite3.dll.*`),
+			StdoutRegex:        regexp.MustCompile(`(?s).*Expected name: sqlite3.dll.*Renaming .*sqlite3 → .*sqlite3.dll.*`),
 		},
 	}
 
