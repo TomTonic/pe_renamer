@@ -166,7 +166,7 @@ func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandi
 
 func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool, ignoreCase bool) {
 	if verbose {
-		fmt.Fprintf(out, "File: %s\n", filename)
+		_, _ = fmt.Fprintf(out, "File: %s\n", filename)
 	}
 
 	pe, err := peparser.New(filename, &peparser.Options{})
@@ -178,12 +178,12 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	}
 	// ensure any resources used by the parser are released (some backends keep files open)
 	if closer, ok := any(pe).(interface{ Close() error }); ok {
-		defer closer.Close()
+		defer func() { _ = closer.Close() }()
 	}
 
 	if err := pe.Parse(); err != nil {
 		if verbose {
-			fmt.Fprintf(out, "  File is not in PE format: %v\n", err)
+			_, _ = fmt.Fprintf(out, "  File is not in PE format: %v\n", err)
 		}
 		return
 	}
@@ -207,13 +207,11 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	}
 
 	if verbose {
-		fmt.Fprintf(out, "  Given/expected name: %s ↔ %s\n", givenName, expectedName)
+		_, _ = fmt.Fprintf(out, "  Given/expected name: %s ↔ %s\n", givenName, expectedName)
 	}
 
-	extEqual := false
-	if strings.Compare(strings.ToUpper(givenExt), strings.ToUpper(expectedExt)) == 0 {
-		extEqual = true
-	}
+	// prefer a direct case-insensitive equality check
+	extEqual := strings.EqualFold(givenExt, expectedExt)
 
 	opts := levenshtein.Options{
 		InsCost: 1, // if the filename is longer/more specific, don't penalize a lot. e.g. example.dll vs example32.dll and example64.dll
@@ -236,7 +234,7 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	equality *= 100
 
 	if verbose {
-		fmt.Fprintf(out, "  Similarity: %.1f%%\n", equality)
+		_, _ = fmt.Fprintf(out, "  Similarity: %.1f%%\n", equality)
 	}
 
 	// consider ignoreCase when determining if names are already equal
@@ -295,7 +293,7 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 
 	if dryRun || verbose {
 		// print the planned operation
-		fmt.Fprintf(out, "Renaming %s → %s\n", ofn, nfn)
+		_, _ = fmt.Fprintf(out, "Renaming %s → %s\n", ofn, nfn)
 	}
 	if dryRun {
 		return nil

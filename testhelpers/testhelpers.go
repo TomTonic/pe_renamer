@@ -79,13 +79,13 @@ func CopyFixture(t *testing.T, src, dst string) {
 	if err != nil {
 		t.Fatalf("CopyFixture open src %s: %v", src, err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		t.Fatalf("CopyFixture create dst %s: %v", dst, err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		t.Fatalf("CopyFixture copy from %s to %s: %v", src, dst, err)
@@ -173,7 +173,7 @@ func FileSHA256(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {

@@ -18,7 +18,7 @@ import (
 func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose bool, dryRun bool, justExt bool, ignoreCase bool) {
 	//t.Helper()
 	td := t.TempDir()
-	defer os.RemoveAll(td)
+	defer func() { _ = os.RemoveAll(td) }()
 
 	// prepare fixtures
 	testhelpers.CopyCasesToDir(t, cases, td)
