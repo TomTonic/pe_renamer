@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -22,9 +21,9 @@ import (
 
 // mustClose closes the provided io.Closer and logs any error.
 // Use this in defers to make intent explicit and surface closing errors.
-func mustClose(c io.Closer) {
+func mustClose(c io.Closer, errWriter io.Writer) {
 	if err := c.Close(); err != nil {
-		log.Printf("close: %v", err)
+		_, _ = fmt.Fprintf(errWriter, "Error closing resource: %s\n", conciseErr(err))
 	}
 }
 
@@ -86,11 +85,14 @@ func init() {
 	}
 }
 
-func extractPEInfo(path string, pe *peparser.File) FileInfo {
+func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Writer) FileInfo {
 	name := "*"
 	// 1) Prefer export name when available
 	if pe.Export.Name != "" {
 		name = pe.Export.Name
+		if verbose {
+			_, _ = fmt.Fprintf(outWriter, "  Found name in export structure: %s\n", pe.Export.Name)
+		}
 	} else {
 		// 2) Then try CLR module/assembly name (if present)
 		if modTable, ok := pe.CLR.MetadataTables[peparser.Module]; ok {
@@ -100,6 +102,9 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 				if len(modTableRows) > 0 {
 					modName := pe.GetStringFromData(modTableRows[0].Name, pe.CLR.MetadataStreams["#Strings"])
 					name = string(modName)
+					if verbose {
+						_, _ = fmt.Fprintf(outWriter, "  Found CLR module/assembly name: %s\n", name)
+					}
 				}
 			}
 		}
@@ -113,6 +118,9 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 				// kv is map[string]string
 				if ofn, ok := kv["OriginalFilename"]; ok && ofn != "" {
 					name = ofn
+					if verbose {
+						_, _ = fmt.Fprintf(outWriter, "  Found OriginalFilename in StringFileInfo: %s\n", name)
+					}
 					break
 				}
 			}
@@ -122,19 +130,39 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	// 4) fallback to filename if no better name found
 	if name == "*" {
 		name = filepath.Base(path)
+		if verbose {
+			_, _ = fmt.Fprintf(outWriter, "  Could not find better name, falling back to: %s\n", name)
+		}
 	}
 
 	// ensure that the name has an appropriate extension
 	ext := filepath.Ext(name)
 	if ext == "" || !commonPEExtensions.Contains(strings.ToLower(ext)) {
+		if verbose {
+			_, _ = fmt.Fprintf(outWriter, "  Could not identify appropriate PE file extension. Guessing...\n")
+		}
 		if pe.IsDLL() {
 			name += ".dll"
+			if verbose {
+				_, _ = fmt.Fprintf(outWriter, "  File seems to be a dynamic-link library (DLL). Appending extension: %s\n", name)
+			}
 		} else if pe.IsEXE() {
 			name += ".exe"
+			if verbose {
+				_, _ = fmt.Fprintf(outWriter, "  File seems to be an executable (EXE). Appending extension: %s\n", name)
+			}
+
 		} else if pe.IsDriver() {
 			name += ".sys"
+			if verbose {
+				_, _ = fmt.Fprintf(outWriter, "  File seems to be a driver (SYS). Appending extension: %s\n", name)
+			}
 		} else {
 			name += ".bin"
+			if verbose {
+				_, _ = fmt.Fprintf(outWriter, "  Could not guess appropriate PE file extension. Using fallback: %s\n", name)
+			}
+
 		}
 	}
 
@@ -146,11 +174,17 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 		version = fmt.Sprintf("%d.%d",
 			pe.Export.Struct.MajorVersion,
 			pe.Export.Struct.MinorVersion)
+		if verbose {
+			_, _ = fmt.Fprintf(outWriter, "  Found version information in export structure: %s\n", version)
+		}
 	} else {
 		if pe.Resources.Struct.MajorVersion != 0 || pe.Resources.Struct.MinorVersion != 0 {
 			version = fmt.Sprintf("%d.%d",
 				pe.Resources.Struct.MajorVersion,
 				pe.Resources.Struct.MinorVersion)
+			if verbose {
+				_, _ = fmt.Fprintf(outWriter, "  Found version information in resource structure: %s\n", version)
+			}
 		} else {
 			if asmTable, ok := pe.CLR.MetadataTables[peparser.Assembly]; ok {
 				if asmTable.Content != nil {
@@ -158,6 +192,9 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 					if len(asmRows) > 0 {
 						asm := asmRows[0]
 						version = fmt.Sprintf("%d.%d.%d.%d", asm.MajorVersion, asm.MinorVersion, asm.BuildNumber, asm.RevisionNumber)
+						if verbose {
+							_, _ = fmt.Fprintf(outWriter, "  Found version information in assembly table: %s\n", version)
+						}
 					}
 				}
 			}
@@ -171,9 +208,15 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 			for _, kv := range sfi {
 				if fv, ok := kv["FileVersion"]; ok && fv != "" {
 					version = fv
+					if verbose {
+						_, _ = fmt.Fprintf(outWriter, "  Found version information in StringFileInfo (FileVersion): %s\n", version)
+					}
 					break
 				} else if pv, ok := kv["ProductVersion"]; ok && pv != "" {
 					version = pv
+					if verbose {
+						_, _ = fmt.Fprintf(outWriter, "  Found version information in StringFileInfo (ProductVersion): %s\n", version)
+					}
 					break
 				}
 			}
@@ -187,64 +230,63 @@ func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	}
 }
 
-func SearchFiles(path string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool, ignoreCase bool) error {
+func SearchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]RenamingCandidate, outWriter io.Writer, errWriter io.Writer) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
+		_, _ = fmt.Fprintf(errWriter, "Error getting information about %q: %s\n", path, conciseErr(err))
 		return err
 	}
 
 	if info.IsDir() {
 		entries, err := os.ReadDir(path)
 		if err != nil {
+			_, _ = fmt.Fprintf(errWriter, "Error reading directory %q: %s\n", path, conciseErr(err))
 			return err
 		}
 		for _, e := range entries {
 			fullChildName := filepath.Join(path, e.Name())
 			if e.IsDir() {
-				err := SearchFiles(fullChildName, verbose, candidates, out, justExt, ignoreCase)
-				if err != nil {
+				if err := SearchFiles(fullChildName, verbose, dryRun, justExt, ignoreCase, candidates, outWriter, errWriter); err != nil {
 					return err
 				}
 			} else {
-				processFile(fullChildName, verbose, candidates, out, justExt, ignoreCase)
+				processFile(fullChildName, verbose, dryRun, justExt, ignoreCase, candidates, outWriter, errWriter)
 			}
 		}
 	} else {
-		processFile(path, verbose, candidates, out, justExt, ignoreCase)
+		processFile(path, verbose, dryRun, justExt, ignoreCase, candidates, outWriter, errWriter)
 	}
 	return nil
+
 }
 
-func processFile(filename string, verbose bool, candidates *map[string]RenamingCandidate, out io.Writer, justExt bool, ignoreCase bool) {
+func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]RenamingCandidate, outWriter io.Writer, errWriter io.Writer) {
 	if verbose {
-		_, _ = fmt.Fprintf(out, "File: %s\n", filename)
+		_, _ = fmt.Fprintf(outWriter, "File: %s\n", path)
 	}
 
-	pe, err := peparser.New(filename, &peparser.Options{})
+	pe, err := peparser.New(path, &peparser.Options{})
 	if err != nil {
-		if verbose {
-			log.Printf("Error opening file %s: %v\n", filename, err)
-		}
+		_, _ = fmt.Fprintf(errWriter, "Error opening file %q: %s\n", path, conciseErr(err))
 		return
 	}
 	// ensure any resources used by the parser are released (some backends keep files open)
 	if closer, ok := any(pe).(interface{ Close() error }); ok {
-		defer mustClose(closer)
+		defer mustClose(closer, errWriter)
 	}
 
 	if err := pe.Parse(); err != nil {
 		if verbose {
-			_, _ = fmt.Fprintf(out, "  File is not in PE format: %v\n", err)
+			_, _ = fmt.Fprintf(outWriter, "  File is not in PE format: %v\n", err)
 		}
 		return
 	}
+	fileinfo := extractPEInfo(path, pe, verbose, outWriter)
 
-	fileinfo := extractPEInfo(filename, pe)
-
-	originalPath := filepath.Dir(filename)
-	givenName := filepath.Base(filename)
-	givenExt := filepath.Ext(filename)
+	originalPath := filepath.Dir(path)
+	givenName := filepath.Base(path)
+	givenExt := filepath.Ext(path)
 
 	expectedName := fileinfo.Name
 	expectedExt := filepath.Ext(expectedName)
@@ -259,7 +301,7 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	}
 
 	if verbose {
-		_, _ = fmt.Fprintf(out, "  Given/expected name: %s ↔ %s\n", givenName, expectedName)
+		_, _ = fmt.Fprintf(outWriter, "  Expected name: %s\n", expectedName)
 	}
 
 	// prefer a direct case-insensitive equality check
@@ -286,11 +328,18 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 	equality *= 100
 
 	if verbose {
-		_, _ = fmt.Fprintf(out, "  Similarity: %.1f%%\n", equality)
+		_, _ = fmt.Fprintf(outWriter, "  Similarity: %.1f%%\n", equality)
 	}
 
 	// consider ignoreCase when determining if names are already equal
 	if (ignoreCase && strings.EqualFold(givenName, expectedName)) || (!ignoreCase && givenName == expectedName) {
+		if verbose {
+			if ignoreCase {
+				_, _ = fmt.Fprintf(outWriter, "  Regarding file names as equal (ignore case). Skipping rename.\n")
+			} else {
+				_, _ = fmt.Fprintf(outWriter, "  Regarding file names as equal. Skipping rename.\n")
+			}
+		}
 		return
 	}
 
@@ -302,19 +351,35 @@ func processFile(filename string, verbose bool, candidates *map[string]RenamingC
 		editing_distance_percentage: equality,
 	}
 
-	(*candidates)[filename] = candidate
+	(*candidates)[path] = candidate
+}
+
+// conciseErr returns a short, user-friendly error message for file system errors.
+// For errors produced by os.Stat it strips the leading "stat <path>: " prefix and
+// returns the underlying message (for example "no such file or directory").
+func conciseErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	// Prefer canonical check for non-existence
+	if os.IsNotExist(err) {
+		return "no such file or directory"
+	}
+	s := err.Error()
+	if i := strings.LastIndex(s, ": "); i != -1 {
+		return s[i+2:]
+	}
+	return s
 }
 
 // Run executes the main renaming-detection logic and writes human-readable
-// operations to out (stdout) and logs to errWriter (stderr). It returns an error
-// if searching or parsing fails.
-func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool) error {
-	// set log output to errWriter so verbose parse errors are captured there
-	log.SetOutput(errWriter)
+// operations to out (stdout) and logs to errWriter (stderr).
+func Run(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, out io.Writer, errWriter io.Writer) error {
+	// Note: explicit logging calls were replaced by writes to errWriter.
 
 	candidates := make(map[string]RenamingCandidate, 0)
 
-	if err := SearchFiles(path, verbose, &candidates, out, justExt, ignoreCase); err != nil {
+	if err := SearchFiles(path, verbose, dryRun, justExt, ignoreCase, &candidates, out, errWriter); err != nil {
 		return err
 	}
 
@@ -325,15 +390,12 @@ func Run(out io.Writer, errWriter io.Writer, path string, verbose bool, dryRun b
 	sortCandidates(candidateList)
 
 	for _, candidate := range candidateList {
-		err := renameCandidate(out, candidate, verbose, dryRun, justExt)
-		if err != nil {
-			return err
-		}
+		renameCandidate(candidate, verbose, dryRun, justExt, ignoreCase, out, errWriter)
 	}
 	return nil
 }
 
-func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, dryRun bool, justExt bool) error {
+func renameCandidate(candidate RenamingCandidate, verbose bool, dryRun bool, justExt bool, ignoreCase bool, outWriter io.Writer, errWriter io.Writer) {
 	tempname := uuid.New().String()
 	ofn := filepath.Join(candidate.Path, candidate.OriginalName)
 	tmp := filepath.Join(candidate.Path, tempname)
@@ -345,31 +407,34 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 
 	if dryRun || verbose {
 		// print the planned operation
-		_, _ = fmt.Fprintf(out, "Renaming %s → %s\n", ofn, nfn)
+		_, _ = fmt.Fprintf(outWriter, "Renaming %s → %s\n", ofn, nfn)
 	}
 	if dryRun {
-		return nil
+		return
 	}
 
 	if justExt {
 		// perform simple rename
 		if err := os.Rename(ofn, nfn); err != nil {
-			return err
+			_, _ = fmt.Fprintf(errWriter, "Error renaming %q to %q: %s\n", ofn, nfn, conciseErr(err))
+			return
 		}
-		return nil
+		return
 	}
 
 	// perform complex rename: move original file to temp name, create dir with original name, move temp file into that dir with new name
 	if err := os.Rename(ofn, tmp); err != nil {
-		return err
+		_, _ = fmt.Fprintf(errWriter, "Error renaming %q to temporary file %q: %s\n", ofn, tmp, conciseErr(err))
+		return
 	}
 	if err := os.MkdirAll(ofn, 0o755); err != nil {
-		return err
+		_, _ = fmt.Fprintf(errWriter, "Error creating directory %q: %s\n", ofn, conciseErr(err))
+		return
 	}
 	if err := os.Rename(tmp, nfn); err != nil {
-		return err
+		_, _ = fmt.Fprintf(errWriter, "Error renaming temporary file %q to %q: %s\n", tmp, nfn, conciseErr(err))
+		return
 	}
-	return nil
 }
 
 func main() {
@@ -411,12 +476,11 @@ func runCli(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if cli.Path == "" {
-		_, _ = fmt.Fprintln(stderr, "path is required (use --version to show build info)")
+		_, _ = fmt.Fprintln(stderr, "path is required (use -h for help or --version to show build info)")
 		return 2
 	}
 
-	if err := Run(stdout, stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase); err != nil {
-		_, _ = fmt.Fprintf(stderr, "run: %v\n", err)
+	if err := Run(cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase, stdout, stderr); err != nil {
 		return 1
 	}
 	return 0

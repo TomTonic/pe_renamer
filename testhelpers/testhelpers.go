@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,7 +17,7 @@ import (
 // Use this in defers to make intent explicit and surface closing errors.
 func mustClose(c io.Closer) {
 	if err := c.Close(); err != nil {
-		log.Printf("close: %v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "close: %v\n", err)
 	}
 }
 
