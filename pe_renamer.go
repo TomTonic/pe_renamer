@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"unicode"
@@ -41,6 +43,48 @@ type RenamingCandidate struct {
 }
 
 var commonPEExtensions = set3.FromArray([]string{".exe", ".dll", ".sys", ".ocx", ".cpl", ".drv", ".scr"})
+
+// build-time variables set via -ldflags. Defaults use runtime values.
+var (
+	gitTag    = "dev"
+	buildOS   = runtime.GOOS
+	buildArch = runtime.GOARCH
+)
+
+// PrintVersion writes OS/ARCH/TAG info to w.
+func PrintVersion(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "OS: %s\n", buildOS)
+	_, _ = fmt.Fprintf(w, "ARCH: %s\n", buildArch)
+	_, _ = fmt.Fprintf(w, "TAG: %s\n", gitTag)
+}
+
+func init() {
+	// Try to read build info embedded by the Go toolchain. In recent Go
+	// versions the build may include VCS/module info (version or revision).
+	// Only set gitTag from build info when it wasn't provided via ldflags
+	// (the ldflags -X option overwrites the variable at link time). This
+	// ensures an explicit ldflags value is preferred.
+	if gitTag == "dev" {
+		if bi, ok := debug.ReadBuildInfo(); ok && bi != nil {
+			// Prefer a proper module version (starts with 'v') when present.
+			if bi.Main.Version != "" && bi.Main.Version != "(devel)" && strings.HasPrefix(bi.Main.Version, "v") {
+				gitTag = bi.Main.Version
+				return
+			}
+			// Otherwise look for VCS revision and use a short SHA as fallback.
+			for _, s := range bi.Settings {
+				if s.Key == "vcs.revision" && s.Value != "" {
+					v := s.Value
+					if len(v) > 12 {
+						v = v[:12]
+					}
+					gitTag = v
+					return
+				}
+			}
+		}
+	}
+}
 
 func extractPEInfo(path string, pe *peparser.File) FileInfo {
 	name := "*"
@@ -330,15 +374,21 @@ func renameCandidate(out io.Writer, candidate RenamingCandidate, verbose bool, d
 
 func main() {
 	var cli struct {
-		Verbose    bool   `short:"v" help:"Print verbose output during processing"`
-		DryRun     bool   `short:"n" help:"Don't perform writes; only show planned operations (dry-run)"`
-		IgnoreCase bool   `short:"i" help:"Ignore case when comparing filenames"`
-		JustExt    bool   `short:"e" help:"Only append an appropriate extension without renaming the base filename"`
-		Path       string `arg:"" required:"" help:"Path to file or directory to search"`
+		Version    struct{} `cmd:"" help:"Print version and exit"`
+		Verbose    bool     `short:"v" help:"Print verbose output during processing"`
+		DryRun     bool     `short:"n" help:"Don't perform writes; only show planned operations (dry-run)"`
+		IgnoreCase bool     `short:"i" help:"Ignore case when comparing filenames"`
+		JustExt    bool     `short:"e" help:"Only append an appropriate extension without renaming the base filename"`
+		Path       string   `arg:"" required:"" help:"Path to file or directory to search"`
 	}
 
 	ctx := kong.Parse(&cli, kong.Description("PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.\n\nFor each renamed file the tool creates a directory named after the file's current name and moves the renamed file into that directory, so write permissions are required for the target location."))
-	_ = ctx
+
+	// support `version` subcommand
+	if ctx.Command() == "version" {
+		PrintVersion(os.Stdout)
+		return
+	}
 
 	if err := Run(os.Stdout, os.Stderr, cli.Path, cli.Verbose, cli.DryRun, cli.JustExt, cli.IgnoreCase); err != nil {
 		log.Fatalf("run: %v", err)
