@@ -51,7 +51,9 @@ jobs:
             BIN=${BIN}.exe
           fi
           echo "Building $BIN (GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }})"
-          go build -o dist/${{ matrix.osname }}/${BIN} ./...
+          LDFLAGS="-s -w -X main.gitTag=${{ github.ref_name }} -X main.buildOS=${{ matrix.goos }} -X main.buildArch=${{ matrix.goarch }}"
+          echo "ldflags: $LDFLAGS"
+          go build -ldflags "$LDFLAGS" -o dist/${{ matrix.osname }}/${BIN} ./...
 
       - name: Zip binary (named per OS + tag) and create checksum
         env:
@@ -106,5 +108,6 @@ jobs:
         with:
           files: |
             dist/*.zip
+            dist/*.zip.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
