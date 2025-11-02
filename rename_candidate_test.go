@@ -11,7 +11,7 @@ import (
 
 func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	td := testhelpers.CreateTestDir(t)
-	defer os.RemoveAll(td)
+	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
 	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
@@ -53,7 +53,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 
 func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	td := testhelpers.CreateTestDir(t)
-	defer os.RemoveAll(td)
+	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
 	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
@@ -97,7 +97,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 
 func Test_RenameCandidate_Apply(t *testing.T) {
 	td := testhelpers.CreateTestDir(t)
-	defer os.RemoveAll(td)
+	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
 	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
@@ -170,7 +170,7 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 
 func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 	td := testhelpers.CreateTestDir(t)
-	defer os.RemoveAll(td)
+	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
 	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
