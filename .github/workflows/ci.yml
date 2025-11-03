@@ -1,4 +1,4 @@
-name: CI
+name: "Linter"
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: Go Linter
+    name: golangci-lint
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
