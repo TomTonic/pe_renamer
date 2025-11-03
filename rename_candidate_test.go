@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -232,6 +233,10 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 }
 
 func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
+	// filesystem permission semantics differ on Windows; skip this test there
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping read-only permission test on Windows")
+	}
 	td := testhelpers.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
@@ -266,6 +271,10 @@ func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
 }
 
 func Test_RenameCandidate_ReadOnly_FullRename(t *testing.T) {
+	// filesystem permission semantics differ on Windows; skip this test there
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping read-only permission test on Windows")
+	}
 	td := testhelpers.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
