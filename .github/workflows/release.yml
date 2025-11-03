@@ -117,6 +117,21 @@ jobs:
       - name: List downloaded artifacts
         run: ls -la dist
 
+      - name: Flatten artifacts into dist/
+        # Downloaded artifacts are placed under dist/<artifact-name>/...;
+        # move the inner files up so the release uploader sees dist/pe_renamer_TAG_OSNAME.zip
+        run: |
+          set -euo pipefail
+          shopt -s dotglob || true
+          # Move any files from artifact subdirs into dist/
+          for sub in dist/dist-*; do
+            if [ -d "$sub" ]; then
+              mv -v "$sub"/* dist/ || true
+            fi
+          done
+          # show final layout
+          ls -la dist
+
       - name: Upload release assets
         # softprops/action-gh-release creates/updates the GitHub Release and uploads files
         uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
