@@ -23,24 +23,24 @@ import (
 
 // Helper utilities: use functions from package misc (for example misc.ConciseErr and misc.MustClose).
 
-// FileInfo holds extracted metadata for a single file.
+// fileInfo holds extracted metadata for a single file.
 // Path is the file path, Name is the resolved filename (possibly from
 // embedded PE metadata), and Version holds the discovered version string.
-type FileInfo struct {
+type fileInfo struct {
 	Path    string
 	Name    string
 	Version string
 }
 
-// RenamingCandidate represents a proposed rename operation discovered by
+// renamingCandidate represents a proposed rename operation discovered by
 // scanning. It includes the original path, the original filename, the
 // proposed NewName and scoring/auxiliary fields used for sorting.
-type RenamingCandidate struct {
-	Path                        string
-	OriginalName                string
-	NewName                     string
-	matching_extension          bool
-	editing_distance_percentage float64
+type renamingCandidate struct {
+	Path         string
+	OriginalName string
+	NewName      string
+	ExtMatches   bool
+	Similarity   float64
 }
 
 var commonPEExtensions = set3.FromArray([]string{".exe", ".dll", ".sys", ".ocx", ".cpl", ".drv", ".scr"})
@@ -93,7 +93,7 @@ func init() {
 // Note: helper functions were moved to the `misc` package. Use misc.MustClose
 // and misc.ConciseErr instead of local helpers.
 
-func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Writer) FileInfo {
+func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Writer) fileInfo {
 	name := "*"
 	// 1) Prefer export name when available
 	if pe.Export.Name != "" {
@@ -231,14 +231,14 @@ func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Wr
 		}
 	}
 
-	return FileInfo{
+	return fileInfo{
 		Path:    path,
 		Name:    name,
 		Version: version,
 	}
 }
 
-func searchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]RenamingCandidate, outWriter io.Writer, errWriter io.Writer) error {
+func searchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]renamingCandidate, outWriter io.Writer, errWriter io.Writer) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -269,7 +269,7 @@ func searchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 
 }
 
-func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]RenamingCandidate, outWriter io.Writer, errWriter io.Writer) {
+func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]renamingCandidate, outWriter io.Writer, errWriter io.Writer) {
 	if verbose {
 		_, _ = fmt.Fprintf(outWriter, "File: %s\n", path)
 	}
@@ -343,12 +343,12 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 		return
 	}
 
-	candidate := RenamingCandidate{
-		Path:                        originalPath,
-		OriginalName:                givenName,
-		NewName:                     expectedName,
-		matching_extension:          extEqual,
-		editing_distance_percentage: equality,
+	candidate := renamingCandidate{
+		Path:         originalPath,
+		OriginalName: givenName,
+		NewName:      expectedName,
+		ExtMatches:   extEqual,
+		Similarity:   equality,
 	}
 
 	(*candidates)[path] = candidate
@@ -359,13 +359,13 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 func Run(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, out io.Writer, errWriter io.Writer) error {
 	// Note: explicit logging calls were replaced by writes to errWriter.
 
-	candidates := make(map[string]RenamingCandidate, 0)
+	candidates := make(map[string]renamingCandidate, 0)
 
 	if err := searchFiles(path, verbose, dryRun, justExt, ignoreCase, &candidates, out, errWriter); err != nil {
 		return err
 	}
 
-	candidateList := make([]RenamingCandidate, 0, len(candidates))
+	candidateList := make([]renamingCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		candidateList = append(candidateList, candidate)
 	}
@@ -377,7 +377,7 @@ func Run(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, 
 	return nil
 }
 
-func renameCandidate(candidate RenamingCandidate, verbose bool, dryRun bool, justExt bool, ignoreCase bool, outWriter io.Writer, errWriter io.Writer) {
+func renameCandidate(candidate renamingCandidate, verbose bool, dryRun bool, justExt bool, ignoreCase bool, outWriter io.Writer, errWriter io.Writer) {
 	tempname := uuid.New().String()
 	ofn := filepath.Join(candidate.Path, candidate.OriginalName)
 	tmp := filepath.Join(candidate.Path, tempname)
@@ -468,15 +468,15 @@ func runCli(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func sortCandidates(candidates []RenamingCandidate) {
+func sortCandidates(candidates []renamingCandidate) {
 	sort.Slice(candidates, func(i, j int) bool {
 		// 1. Prefer candidates with matching extension
-		if candidates[i].matching_extension != candidates[j].matching_extension {
-			return candidates[i].matching_extension
+		if candidates[i].ExtMatches != candidates[j].ExtMatches {
+			return candidates[i].ExtMatches
 		}
 		// 2. Then by editing_distance_percentage (descending)
-		if candidates[i].editing_distance_percentage != candidates[j].editing_distance_percentage {
-			return candidates[i].editing_distance_percentage > candidates[j].editing_distance_percentage
+		if candidates[i].Similarity != candidates[j].Similarity {
+			return candidates[i].Similarity > candidates[j].Similarity
 		}
 		// 3. Then by Path (ascending)
 		if candidates[i].Path != candidates[j].Path {
