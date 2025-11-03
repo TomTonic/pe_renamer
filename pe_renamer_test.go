@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"pe_renamer/testhelpers"
+	misc "pe_renamer/misc"
 
 	set3 "github.com/TomTonic/Set3"
 	peparser "github.com/saferwall/pe"
@@ -50,13 +50,13 @@ func Test_FixtureObjectsPresentAndParseable(t *testing.T) {
 
 // runCasesAndCheck runs Run() in-process against the provided FixtureCase slice.
 // It returns stdout, stderr and the testdir (caller must cleanup).
-func runCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose bool, dryRun bool, justExt bool, ignoreCase bool) {
+func runCasesAndCheck(t *testing.T, cases []misc.FixtureObject, verbose bool, dryRun bool, justExt bool, ignoreCase bool) {
 	//t.Helper()
 	td := t.TempDir()
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// prepare fixtures
-	testhelpers.CopyCasesToDir(t, cases, td)
+	misc.CopyCasesToDir(t, cases, td)
 
 	var stdout, stderr strings.Builder
 	if err := Run(td, verbose, dryRun, justExt, ignoreCase, &stdout, &stderr); err != nil {
@@ -67,7 +67,7 @@ func runCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 	errStr := stderr.String()
 
 	// capture directory tree before
-	afterDirTree, err := testhelpers.DirTree(t, td, ignoreCase)
+	afterDirTree, err := misc.DirTree(t, td, ignoreCase)
 	if err != nil {
 		t.Fatalf("DirTree before failed: %v", err)
 	}
@@ -117,7 +117,7 @@ func runCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 }
 
 func Test_Sqlite3DLL_Rename(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "sqlite3win32x86",
 			ObfuscatedFileName: "./sqlite3win32x86",
@@ -140,7 +140,7 @@ func Test_Sqlite3DLL_Rename(t *testing.T) {
 }
 
 func Test_Log4netDLL_Rename(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "log4netdotnet20",
 			ObfuscatedFileName: "./log4netdotnet20",
@@ -157,7 +157,7 @@ func Test_Log4netDLL_Rename(t *testing.T) {
 }
 
 func Test_Putty_Rename(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "./puttywin32x86",
@@ -179,7 +179,7 @@ func Test_Putty_Rename(t *testing.T) {
 }
 
 func Test_NSIS_Rename(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "NSISPortable311",
 			ObfuscatedFileName: "./NSISPortable311",
@@ -191,7 +191,7 @@ func Test_NSIS_Rename(t *testing.T) {
 }
 
 func Test_PNG_Rename(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "somepng",
 			ObfuscatedFileName: "./somepng",
@@ -204,7 +204,7 @@ func Test_PNG_Rename(t *testing.T) {
 }
 
 func Test_Subfolder(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "somepng",
 			ObfuscatedFileName: "./sub/abc",
@@ -231,7 +231,7 @@ func Test_Subfolder(t *testing.T) {
 }
 
 func Test_CorrectName(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "PuTTY.exe",
@@ -244,7 +244,7 @@ func Test_CorrectName(t *testing.T) {
 }
 
 func Test_JustExt(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "puttywin32x86",
@@ -262,7 +262,7 @@ func Test_JustExt(t *testing.T) {
 }
 
 func Test_IgnoreCase(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "putty.exe",
@@ -280,7 +280,7 @@ func Test_IgnoreCase(t *testing.T) {
 }
 
 func Test_JustExtAndIgnoreCase(t *testing.T) {
-	cases := []testhelpers.FixtureObject{
+	cases := []misc.FixtureObject{
 		{
 			BinFile:            "puttywin32x86",
 			ObfuscatedFileName: "putty.exe",
