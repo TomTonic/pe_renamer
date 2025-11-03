@@ -231,7 +231,7 @@ func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Wr
 	}
 }
 
-func SearchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]RenamingCandidate, outWriter io.Writer, errWriter io.Writer) error {
+func searchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, candidates *map[string]RenamingCandidate, outWriter io.Writer, errWriter io.Writer) error {
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -248,7 +248,7 @@ func SearchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 		for _, e := range entries {
 			fullChildName := filepath.Join(path, e.Name())
 			if e.IsDir() {
-				if err := SearchFiles(fullChildName, verbose, dryRun, justExt, ignoreCase, candidates, outWriter, errWriter); err != nil {
+				if err := searchFiles(fullChildName, verbose, dryRun, justExt, ignoreCase, candidates, outWriter, errWriter); err != nil {
 					return err
 				}
 			} else {
@@ -347,8 +347,6 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 	(*candidates)[path] = candidate
 }
 
-// helper moved to package misc
-
 // Run executes the main renaming-detection logic and writes human-readable
 // operations to out (stdout) and logs to errWriter (stderr).
 func Run(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, out io.Writer, errWriter io.Writer) error {
@@ -356,7 +354,7 @@ func Run(path string, verbose bool, dryRun bool, justExt bool, ignoreCase bool, 
 
 	candidates := make(map[string]RenamingCandidate, 0)
 
-	if err := SearchFiles(path, verbose, dryRun, justExt, ignoreCase, &candidates, out, errWriter); err != nil {
+	if err := searchFiles(path, verbose, dryRun, justExt, ignoreCase, &candidates, out, errWriter); err != nil {
 		return err
 	}
 
