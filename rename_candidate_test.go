@@ -5,27 +5,27 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	misc "pe_renamer/misc"
+	"runtime"
 	"strings"
 	"testing"
-
-	"pe_renamer/testhelpers"
 )
 
 func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
-	td := testhelpers.CreateTestDir(t)
+	td := misc.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+	misc.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// capture directory tree before
-	before, err := testhelpers.DirTree(t, td, false)
+	before, err := misc.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree before failed: %v", err)
 	}
 
 	// candidate should reference the obfuscated name (no extension)
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "putty.exe",
@@ -42,7 +42,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	}
 
 	// capture directory tree after and assert no changes as this is a dry-run
-	after, err := testhelpers.DirTree(t, td, false)
+	after, err := misc.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree after failed: %v", err)
 	}
@@ -52,25 +52,25 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 }
 
 func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
-	td := testhelpers.CreateTestDir(t)
+	td := misc.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+	misc.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// capture directory tree before
-	before, err := testhelpers.DirTree(t, td, false)
+	before, err := misc.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree before failed: %v", err)
 	}
 
 	// candidate should reference the obfuscated name (no extension)
-	cand := RenamingCandidate{
-		Path:                        td,
-		OriginalName:                "puttywin64x64",
-		NewName:                     "putty.exe",
-		matching_extension:          true,
-		editing_distance_percentage: 95.0,
+	cand := renamingCandidate{
+		Path:         td,
+		OriginalName: "puttywin64x64",
+		NewName:      "putty.exe",
+		ExtMatches:   true,
+		Similarity:   95.0,
 	}
 
 	expectedOutput := "Renaming " + filepath.Join(td, "puttywin64x64") + " → " + filepath.Join(td, "puttywin64x64", "putty.exe") + "\n"
@@ -84,7 +84,7 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	}
 
 	// capture directory tree after and assert no changes as this is a dry-run
-	after, err := testhelpers.DirTree(t, td, false)
+	after, err := misc.DirTree(t, td, false)
 	if err != nil {
 		t.Fatalf("DirTree after failed: %v", err)
 	}
@@ -94,13 +94,13 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 }
 
 func Test_RenameCandidate_Apply(t *testing.T) {
-	td := testhelpers.CreateTestDir(t)
+	td := misc.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+	misc.CopyFromTestdata(t, "puttywin64x64", td, "")
 
-	sha256Original, err := testhelpers.FileSHA256(filepath.Join(td, "puttywin64x64"))
+	sha256Original, err := misc.FileSHA256(t, filepath.Join(td, "puttywin64x64"))
 	if err != nil {
 		t.Fatalf("FileSHA256 failed: %v", err)
 	}
@@ -115,7 +115,7 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 		t.Fatalf("unexpected before listing: %v", before)
 	}
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "putty.exe",
@@ -155,7 +155,7 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 	}
 
 	// make sure the original file from the testdata direcory, puttywin64x64 and the renamed file putty.exe are equal
-	sha256NewFile, err := testhelpers.FileSHA256(filepath.Join(td, "puttywin64x64", "putty.exe"))
+	sha256NewFile, err := misc.FileSHA256(t, filepath.Join(td, "puttywin64x64", "putty.exe"))
 	if err != nil {
 		t.Fatalf("FileSHA256 failed: %v", err)
 	}
@@ -165,13 +165,13 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 }
 
 func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
-	td := testhelpers.CreateTestDir(t)
+	td := misc.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+	misc.CopyFromTestdata(t, "puttywin64x64", td, "")
 
-	sha256Original, err := testhelpers.FileSHA256(filepath.Join(td, "puttywin64x64"))
+	sha256Original, err := misc.FileSHA256(t, filepath.Join(td, "puttywin64x64"))
 	if err != nil {
 		t.Fatalf("FileSHA256 failed: %v", err)
 	}
@@ -186,7 +186,7 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 		t.Fatalf("unexpected before listing: %v", before)
 	}
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "somethingrandom",
@@ -222,7 +222,7 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 	}
 
 	// make sure the renamed file data matches original
-	sha256NewFile, err := testhelpers.FileSHA256(renamedPath)
+	sha256NewFile, err := misc.FileSHA256(t, renamedPath)
 	if err != nil {
 		t.Fatalf("FileSHA256 failed: %v", err)
 	}
@@ -232,11 +232,15 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 }
 
 func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
-	td := testhelpers.CreateTestDir(t)
+	// filesystem permission semantics differ on Windows; skip this test there
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping read-only permission test on Windows")
+	}
+	td := misc.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+	misc.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// make directory read-only
 	if err := os.Chmod(td, 0o555); err != nil {
@@ -245,7 +249,7 @@ func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
 	// restore permissions for cleanup
 	defer func() { _ = os.Chmod(td, 0o755) }()
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "somethingrandom",
@@ -266,11 +270,15 @@ func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
 }
 
 func Test_RenameCandidate_ReadOnly_FullRename(t *testing.T) {
-	td := testhelpers.CreateTestDir(t)
+	// filesystem permission semantics differ on Windows; skip this test there
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping read-only permission test on Windows")
+	}
+	td := misc.CreateTestDir(t)
 	defer func() { _ = os.RemoveAll(td) }()
 
 	// copy fixture into td
-	testhelpers.CopyFromTestdata(t, "puttywin64x64", td, "")
+	misc.CopyFromTestdata(t, "puttywin64x64", td, "")
 
 	// make directory read-only
 	if err := os.Chmod(td, 0o555); err != nil {
@@ -279,7 +287,7 @@ func Test_RenameCandidate_ReadOnly_FullRename(t *testing.T) {
 	// restore permissions for cleanup
 	defer func() { _ = os.Chmod(td, 0o755) }()
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "putty.exe",
