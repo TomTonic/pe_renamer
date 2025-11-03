@@ -12,6 +12,8 @@ import (
 
 	"os"
 
+	misc "pe_renamer/misc"
+
 	set3 "github.com/TomTonic/Set3"
 	levenshtein "github.com/TomTonic/levenshtein"
 	"github.com/alecthomas/kong"
@@ -19,13 +21,7 @@ import (
 	peparser "github.com/saferwall/pe"
 )
 
-// mustClose closes the provided io.Closer and logs any error.
-// Use this in defers to make intent explicit and surface closing errors.
-func mustClose(c io.Closer, errWriter io.Writer) {
-	if err := c.Close(); err != nil {
-		_, _ = fmt.Fprintf(errWriter, "Error closing resource: %s\n", conciseErr(err))
-	}
-}
+// (mustClose is defined later next to other helpers)
 
 type FileInfo struct {
 	Path    string
@@ -83,7 +79,12 @@ func init() {
 			}
 		}
 	}
+
 }
+
+// mustClose closes the provided io.Closer and logs any error.
+// Use this in defers to make intent explicit and surface closing errors.
+// helper functions moved to package misc
 
 func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Writer) FileInfo {
 	name := "*"
@@ -234,14 +235,14 @@ func SearchFiles(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 
 	info, err := os.Stat(path)
 	if err != nil {
-		_, _ = fmt.Fprintf(errWriter, "Error getting information about %q: %s\n", path, conciseErr(err))
+		_, _ = fmt.Fprintf(errWriter, "Error getting information about %q: %s\n", path, misc.ConciseErr(err))
 		return err
 	}
 
 	if info.IsDir() {
 		entries, err := os.ReadDir(path)
 		if err != nil {
-			_, _ = fmt.Fprintf(errWriter, "Error reading directory %q: %s\n", path, conciseErr(err))
+			_, _ = fmt.Fprintf(errWriter, "Error reading directory %q: %s\n", path, misc.ConciseErr(err))
 			return err
 		}
 		for _, e := range entries {
@@ -268,12 +269,12 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 
 	pe, err := peparser.New(path, &peparser.Options{})
 	if err != nil {
-		_, _ = fmt.Fprintf(errWriter, "Error opening file %q: %s\n", path, conciseErr(err))
+		_, _ = fmt.Fprintf(errWriter, "Error opening file %q: %s\n", path, misc.ConciseErr(err))
 		return
 	}
 	// ensure any resources used by the parser are released (some backends keep files open)
 	if closer, ok := any(pe).(interface{ Close() error }); ok {
-		defer mustClose(closer, errWriter)
+		defer misc.MustClose(closer, errWriter)
 	}
 
 	if err := pe.Parse(); err != nil {
@@ -346,23 +347,7 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 	(*candidates)[path] = candidate
 }
 
-// conciseErr returns a short, user-friendly error message for file system errors.
-// For errors produced by os.Stat it strips the leading "stat <path>: " prefix and
-// returns the underlying message (for example "no such file or directory").
-func conciseErr(err error) string {
-	if err == nil {
-		return ""
-	}
-	// Prefer canonical check for non-existence
-	if os.IsNotExist(err) {
-		return "no such file or directory"
-	}
-	s := err.Error()
-	if i := strings.LastIndex(s, ": "); i != -1 {
-		return s[i+2:]
-	}
-	return s
-}
+// helper moved to package misc
 
 // Run executes the main renaming-detection logic and writes human-readable
 // operations to out (stdout) and logs to errWriter (stderr).
@@ -408,7 +393,7 @@ func renameCandidate(candidate RenamingCandidate, verbose bool, dryRun bool, jus
 	if justExt {
 		// perform simple rename
 		if err := os.Rename(ofn, nfn); err != nil {
-			_, _ = fmt.Fprintf(errWriter, "Error renaming %q to %q: %s\n", ofn, nfn, conciseErr(err))
+			_, _ = fmt.Fprintf(errWriter, "Error renaming %q to %q: %s\n", ofn, nfn, misc.ConciseErr(err))
 			return
 		}
 		return
@@ -416,15 +401,15 @@ func renameCandidate(candidate RenamingCandidate, verbose bool, dryRun bool, jus
 
 	// perform complex rename: move original file to temp name, create dir with original name, move temp file into that dir with new name
 	if err := os.Rename(ofn, tmp); err != nil {
-		_, _ = fmt.Fprintf(errWriter, "Error renaming %q to temporary file %q: %s\n", ofn, tmp, conciseErr(err))
+		_, _ = fmt.Fprintf(errWriter, "Error renaming %q to temporary file %q: %s\n", ofn, tmp, misc.ConciseErr(err))
 		return
 	}
 	if err := os.MkdirAll(ofn, 0o755); err != nil {
-		_, _ = fmt.Fprintf(errWriter, "Error creating directory %q: %s\n", ofn, conciseErr(err))
+		_, _ = fmt.Fprintf(errWriter, "Error creating directory %q: %s\n", ofn, misc.ConciseErr(err))
 		return
 	}
 	if err := os.Rename(tmp, nfn); err != nil {
-		_, _ = fmt.Fprintf(errWriter, "Error renaming temporary file %q to %q: %s\n", tmp, nfn, conciseErr(err))
+		_, _ = fmt.Fprintf(errWriter, "Error renaming temporary file %q to %q: %s\n", tmp, nfn, misc.ConciseErr(err))
 		return
 	}
 }
