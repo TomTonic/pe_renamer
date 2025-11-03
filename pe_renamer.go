@@ -21,14 +21,20 @@ import (
 	peparser "github.com/saferwall/pe"
 )
 
-// (mustClose is defined later next to other helpers)
+// Helper utilities: use functions from package misc (for example misc.ConciseErr and misc.MustClose).
 
+// FileInfo holds extracted metadata for a single file.
+// Path is the file path, Name is the resolved filename (possibly from
+// embedded PE metadata), and Version holds the discovered version string.
 type FileInfo struct {
 	Path    string
 	Name    string
 	Version string
 }
 
+// RenamingCandidate represents a proposed rename operation discovered by
+// scanning. It includes the original path, the original filename, the
+// proposed NewName and scoring/auxiliary fields used for sorting.
 type RenamingCandidate struct {
 	Path                        string
 	OriginalName                string
@@ -84,7 +90,8 @@ func init() {
 
 // mustClose closes the provided io.Closer and logs any error.
 // Use this in defers to make intent explicit and surface closing errors.
-// helper functions moved to package misc
+// Note: helper functions were moved to the `misc` package. Use misc.MustClose
+// and misc.ConciseErr instead of local helpers.
 
 func extractPEInfo(path string, pe *peparser.File, verbose bool, outWriter io.Writer) FileInfo {
 	name := "*"
@@ -463,19 +470,19 @@ func runCli(args []string, stdout, stderr io.Writer) int {
 
 func sortCandidates(candidates []RenamingCandidate) {
 	sort.Slice(candidates, func(i, j int) bool {
-		// 1. Zuerst die mit gleicher Extension
+		// 1. Prefer candidates with matching extension
 		if candidates[i].matching_extension != candidates[j].matching_extension {
 			return candidates[i].matching_extension
 		}
-		// 2. Nach editing_distance_percentage absteigend
+		// 2. Then by editing_distance_percentage (descending)
 		if candidates[i].editing_distance_percentage != candidates[j].editing_distance_percentage {
 			return candidates[i].editing_distance_percentage > candidates[j].editing_distance_percentage
 		}
-		// 3. Nach Pfad aufsteigend
+		// 3. Then by Path (ascending)
 		if candidates[i].Path != candidates[j].Path {
 			return candidates[i].Path < candidates[j].Path
 		}
-		// 4. Nach OriginalName aufsteigend
+		// 4. Then by OriginalName (ascending)
 		return candidates[i].OriginalName < candidates[j].OriginalName
 	})
 }
