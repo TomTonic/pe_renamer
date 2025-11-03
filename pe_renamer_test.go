@@ -24,7 +24,9 @@ func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose b
 	testhelpers.CopyCasesToDir(t, cases, td)
 
 	var stdout, stderr strings.Builder
-	Run(td, verbose, dryRun, justExt, ignoreCase, &stdout, &stderr)
+	if err := Run(td, verbose, dryRun, justExt, ignoreCase, &stdout, &stderr); err != nil {
+		t.Fatalf("Run returned error: %v\nstderr: %s", err, stderr.String())
+	}
 
 	outStr := stdout.String()
 	errStr := stderr.String()

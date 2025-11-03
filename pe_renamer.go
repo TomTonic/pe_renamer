@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"unicode"
 
 	"os"
 
@@ -311,9 +312,7 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 		DelCost: 1,
 		SubCost: 2,
 		Matches: func(a, b rune) bool {
-			sa := string(a)
-			sb := string(b)
-			result := (ignoreCase && strings.EqualFold(sa, sb)) || (!ignoreCase && sa == sb)
+			result := (ignoreCase && (unicode.ToLower(a) == unicode.ToLower(b))) || (!ignoreCase && (a == b))
 			return result
 		},
 	}
