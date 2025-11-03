@@ -313,7 +313,7 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 		Matches: func(a, b rune) bool {
 			sa := string(a)
 			sb := string(b)
-			result := ignoreCase && strings.EqualFold(sa, sb) || (!ignoreCase && sa == sb)
+			result := (ignoreCase && strings.EqualFold(sa, sb)) || (!ignoreCase && sa == sb)
 			return result
 		},
 	}
