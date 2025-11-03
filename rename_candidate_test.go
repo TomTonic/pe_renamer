@@ -25,7 +25,7 @@ func Test_RenameCandidate_DryRunNotVerbose(t *testing.T) {
 	}
 
 	// candidate should reference the obfuscated name (no extension)
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "putty.exe",
@@ -65,12 +65,12 @@ func Test_RenameCandidate_DryRunVerbose(t *testing.T) {
 	}
 
 	// candidate should reference the obfuscated name (no extension)
-	cand := RenamingCandidate{
-		Path:                        td,
-		OriginalName:                "puttywin64x64",
-		NewName:                     "putty.exe",
-		matching_extension:          true,
-		editing_distance_percentage: 95.0,
+	cand := renamingCandidate{
+		Path:         td,
+		OriginalName: "puttywin64x64",
+		NewName:      "putty.exe",
+		ExtMatches:   true,
+		Similarity:   95.0,
 	}
 
 	expectedOutput := "Renaming " + filepath.Join(td, "puttywin64x64") + " → " + filepath.Join(td, "puttywin64x64", "putty.exe") + "\n"
@@ -115,7 +115,7 @@ func Test_RenameCandidate_Apply(t *testing.T) {
 		t.Fatalf("unexpected before listing: %v", before)
 	}
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "putty.exe",
@@ -186,7 +186,7 @@ func Test_RenameCandidate_Apply_JustExt(t *testing.T) {
 		t.Fatalf("unexpected before listing: %v", before)
 	}
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "somethingrandom",
@@ -249,7 +249,7 @@ func Test_RenameCandidate_ReadOnly_ExtOnly(t *testing.T) {
 	// restore permissions for cleanup
 	defer func() { _ = os.Chmod(td, 0o755) }()
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "somethingrandom",
@@ -287,7 +287,7 @@ func Test_RenameCandidate_ReadOnly_FullRename(t *testing.T) {
 	// restore permissions for cleanup
 	defer func() { _ = os.Chmod(td, 0o755) }()
 
-	cand := RenamingCandidate{
+	cand := renamingCandidate{
 		Path:         td,
 		OriginalName: "puttywin64x64",
 		NewName:      "putty.exe",
