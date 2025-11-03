@@ -61,33 +61,103 @@ go build -o pe_renamer ./...
 
 ### Basic
 
-```bash
-pe_renamer [flags] <path>
+Running without arguments prints a short usage error message:
+
+```text
+code/pe_renamer$ ./pe_renamer
+path is required (use -h for help or --version to show build info)
 ```
 
-### Common flags
+The CLI supports a short help message:
 
-- --dry-run, -n    : don't perform filesystem changes, only print planned renaming operations
-- --verbose, -v    : print verbose output during processing
-- --ignoreCase, -i : perform filename comparisons case-insensitively. When set, name-equality checks use case-insensitive matching (useful on Windows-like collated filesystems).
-- --justExt, -e    : only adjust/append the file extension; do not change the base filename. Useful when you only need to restore an extension (e.g. add `.dll` to obfuscated binaries) without renaming the file's base name.
+```text
+code/pe_renamer$ ./pe_renamer -h            
+Usage: pe_renamer [<path>] [flags]
 
-### Examples
+PE Renamer scans files or directories, identifies Windows PE files, and restores original filenames from embedded metadata. Improves compatibility with SBOM scanners and vulnerability tools like Syft and Grype.
 
-Dry-run (inspect planned changes)
+Arguments:
+	[<path>]    Path to file or directory to search
 
-```bash
-# Linux/macOS
-pe_renamer --dry-run --verbose ./packages
-
-# Windows PowerShell
-.\pe_renamer.exe -n --verbose .\packages
+Flags:
+	-h, --help           Show context-sensitive help.
+	-V, --version        Print version and exit
+	-v, --verbose        Print verbose output during processing
+	-n, --dry-run        Don't perform writes; only show planned operations (dry-run)
+	-i, --ignore-case    Ignore case when comparing filenames
+	-e, --just-ext       Only append an appropriate extension without renaming the base filename
 ```
 
-Apply changes (actually perform renames)
+### Example
 
-```bash
-pe_renamer ./packages
+Dry-run with verbose output, case-insensitive (sample):
+
+```text
+code/pe_renamer$ ./pe_renamer -v -i --dry-run ./testdata
+File: testdata/NSISPortable311
+  Found OriginalFilename in StringFileInfo: NSISPortable_3.11_English.paf.exe
+  Found version information in StringFileInfo (FileVersion): 3.11.0.0
+  Expected name: NSISPortable_3.11_English.paf.exe
+  Similarity: 62.5%
+File: testdata/README.md
+  File is not in PE format: DOS Header magic not found
+File: testdata/log4netdotnet20
+  Found CLR module/assembly name: log4net.dll
+  Found version information in assembly table: 3.2.0.0
+  Expected name: log4net.dll
+  Similarity: 61.5%
+File: testdata/log4netdotnet462
+  Found CLR module/assembly name: log4net.dll
+  Found version information in assembly table: 3.2.0.0
+  Expected name: log4net.dll
+  Similarity: 59.3%
+File: testdata/puttywin32x86
+  Found OriginalFilename in StringFileInfo: PuTTY
+  Could not identify appropriate PE file extension. Guessing...
+  File seems to be an executable (EXE). Appending extension: PuTTY.exe
+  Found version information in StringFileInfo (FileVersion): Release 0.83 (with embedded help)
+  Expected name: PuTTY.exe
+  Similarity: 54.5%
+File: testdata/puttywin64arm
+  Found OriginalFilename in StringFileInfo: PuTTY
+  Could not identify appropriate PE file extension. Guessing...
+  File seems to be an executable (EXE). Appending extension: PuTTY.exe
+  Found version information in StringFileInfo (FileVersion): Release 0.83 (with embedded help)
+  Expected name: PuTTY.exe
+  Similarity: 45.5%
+File: testdata/puttywin64x64
+  Found OriginalFilename in StringFileInfo: PuTTY
+  Could not identify appropriate PE file extension. Guessing...
+  File seems to be an executable (EXE). Appending extension: PuTTY.exe
+  Found version information in StringFileInfo (FileVersion): Release 0.83 (with embedded help)
+  Expected name: PuTTY.exe
+  Similarity: 54.5%
+File: testdata/somepng
+  File is not in PE format: DOS Header magic not found
+File: testdata/sqlite3win32x86
+  Found name in export structure: sqlite3.dll
+  Found version information in StringFileInfo (FileVersion): 3.50.4
+  Expected name: sqlite3.dll
+  Similarity: 53.8%
+File: testdata/sqlite3win64arm
+  Found name in export structure: sqlite3.dll
+  Found version information in StringFileInfo (FileVersion): 3.50.4
+  Expected name: sqlite3.dll
+  Similarity: 53.8%
+File: testdata/sqlite3win64x64
+  Found name in export structure: sqlite3.dll
+  Found version information in StringFileInfo (FileVersion): 3.50.4
+  Expected name: sqlite3.dll
+  Similarity: 53.8%
+Renaming testdata/NSISPortable311 → testdata/NSISPortable311/NSISPortable_3.11_English.paf.exe
+Renaming testdata/log4netdotnet20 → testdata/log4netdotnet20/log4net.dll
+Renaming testdata/log4netdotnet462 → testdata/log4netdotnet462/log4net.dll
+Renaming testdata/puttywin32x86 → testdata/puttywin32x86/PuTTY.exe
+Renaming testdata/puttywin64x64 → testdata/puttywin64x64/PuTTY.exe
+Renaming testdata/sqlite3win32x86 → testdata/sqlite3win32x86/sqlite3.dll
+Renaming testdata/sqlite3win64arm → testdata/sqlite3win64arm/sqlite3.dll
+Renaming testdata/sqlite3win64x64 → testdata/sqlite3win64x64/sqlite3.dll
+Renaming testdata/puttywin64arm → testdata/puttywin64arm/PuTTY.exe
 ```
 
 ### Notes
