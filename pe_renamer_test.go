@@ -11,11 +11,46 @@ import (
 	"pe_renamer/testhelpers"
 
 	set3 "github.com/TomTonic/Set3"
+	peparser "github.com/saferwall/pe"
 )
 
-// RunCasesAndCheck runs Run() in-process against the provided FixtureCase slice.
+func Test_FixtureObjectsPresentAndParseable(t *testing.T) {
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	td := filepath.Join(repoRoot, "testdata")
+
+	files := []string{
+		"log4netdotnet20",
+		"log4netdotnet462",
+		"puttywin32x86",
+		"puttywin64x64",
+		"puttywin64arm",
+		"sqlite3win32x86",
+		"sqlite3win64x64",
+		"sqlite3win64arm",
+		"NSISPortable311",
+	}
+
+	for _, name := range files {
+		path := filepath.Join(td, name)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Fatalf("required fixture missing: %s", path)
+		}
+		p, err := peparser.New(path, &peparser.Options{})
+		if err != nil {
+			t.Fatalf("peparser.New(%s): %v", path, err)
+		}
+		if err := p.Parse(); err != nil {
+			t.Fatalf("Parse failed for %s: %v", path, err)
+		}
+	}
+}
+
+// runCasesAndCheck runs Run() in-process against the provided FixtureCase slice.
 // It returns stdout, stderr and the testdir (caller must cleanup).
-func RunCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose bool, dryRun bool, justExt bool, ignoreCase bool) {
+func runCasesAndCheck(t *testing.T, cases []testhelpers.FixtureObject, verbose bool, dryRun bool, justExt bool, ignoreCase bool) {
 	//t.Helper()
 	td := t.TempDir()
 	defer func() { _ = os.RemoveAll(td) }()
@@ -101,7 +136,7 @@ func Test_Sqlite3DLL_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false, false)
+	runCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_Log4netDLL_Rename(t *testing.T) {
@@ -118,7 +153,7 @@ func Test_Log4netDLL_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false, false)
+	runCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_Putty_Rename(t *testing.T) {
@@ -140,7 +175,7 @@ func Test_Putty_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false, false)
+	runCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_NSIS_Rename(t *testing.T) {
@@ -152,7 +187,7 @@ func Test_NSIS_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false, false)
+	runCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_PNG_Rename(t *testing.T) {
@@ -165,7 +200,7 @@ func Test_PNG_Rename(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false, false)
+	runCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_Subfolder(t *testing.T) {
@@ -192,7 +227,7 @@ func Test_Subfolder(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, false, false, false, false)
+	runCasesAndCheck(t, cases, false, false, false, false)
 }
 
 func Test_CorrectName(t *testing.T) {
@@ -205,7 +240,7 @@ func Test_CorrectName(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false, false)
+	runCasesAndCheck(t, cases, true, false, false, false)
 }
 
 func Test_JustExt(t *testing.T) {
@@ -223,7 +258,7 @@ func Test_JustExt(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, true, false)
+	runCasesAndCheck(t, cases, true, false, true, false)
 }
 
 func Test_IgnoreCase(t *testing.T) {
@@ -241,7 +276,7 @@ func Test_IgnoreCase(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, false, true)
+	runCasesAndCheck(t, cases, true, false, false, true)
 }
 
 func Test_JustExtAndIgnoreCase(t *testing.T) {
@@ -272,5 +307,35 @@ func Test_JustExtAndIgnoreCase(t *testing.T) {
 		},
 	}
 
-	RunCasesAndCheck(t, cases, true, false, true, true)
+	runCasesAndCheck(t, cases, true, false, true, true)
+}
+
+func Test_VersionOutput(t *testing.T) {
+	// backup
+	oldTag := gitTag
+	oldOS := buildOS
+	oldArch := buildArch
+	defer func() {
+		gitTag = oldTag
+		buildOS = oldOS
+		buildArch = oldArch
+	}()
+
+	gitTag = "v9.9.9-test"
+	buildOS = "linux"
+	buildArch = "amd64"
+
+	var sb strings.Builder
+	PrintVersion(&sb)
+	out := sb.String()
+
+	if !strings.Contains(out, "OS: linux") {
+		t.Fatalf("expected OS in version output, got: %s", out)
+	}
+	if !strings.Contains(out, "ARCH: amd64") {
+		t.Fatalf("expected ARCH in version output, got: %s", out)
+	}
+	if !strings.Contains(out, "TAG: v9.9.9-test") {
+		t.Fatalf("expected TAG in version output, got: %s", out)
+	}
 }
