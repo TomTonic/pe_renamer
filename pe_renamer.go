@@ -8,7 +8,6 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
-	"unicode"
 
 	"os"
 
@@ -308,23 +307,17 @@ func processFile(path string, verbose bool, dryRun bool, justExt bool, ignoreCas
 	extEqual := strings.EqualFold(givenExt, expectedExt)
 
 	opts := levenshtein.Options{
-		InsCost: 1, // if the filename is longer/more specific, don't penalize a lot. e.g. example.dll vs example32.dll and example64.dll
-		DelCost: 10,
-		SubCost: 20,
+		InsCost: 1,
+		DelCost: 1,
+		SubCost: 2,
 		Matches: func(a, b rune) bool {
-			return unicode.ToLower(a) == unicode.ToLower(b)
+			sa := string(a)
+			sb := string(b)
+			result := ignoreCase && strings.EqualFold(sa, sb) || (!ignoreCase && sa == sb)
+			return result
 		},
 	}
-	magicnumber := 2.5 // selected in a way that the resulting % values give a reasonnable representation of the actual equality
-
-	distance := levenshtein.DistanceForStrings([]rune(expectedName), []rune(givenName), opts)
-	sourceLength := float64(len(expectedName)) * magicnumber
-	targetLength := float64(len(givenName)) * magicnumber
-	equality := float64(sourceLength+targetLength-float64(distance)) / float64(sourceLength+targetLength)
-	//equality := levenshtein.RatioForStrings([]rune(expectedName), []rune(givenName), opts)
-	if equality < 0 {
-		equality = 0
-	}
+	equality := levenshtein.RatioForStrings([]rune(expectedName), []rune(givenName), opts)
 	equality *= 100
 
 	if verbose {
