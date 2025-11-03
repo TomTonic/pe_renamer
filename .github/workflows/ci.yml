@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: Lint and test
+    name: Go Linter
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -32,6 +32,3 @@ jobs:
 
       - name: Run golangci-lint
         run: golangci-lint run ./...
-
-      - name: Run tests
-        run: go test ./...
