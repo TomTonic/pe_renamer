@@ -20,11 +20,6 @@
   "prConcurrentLimit": 5,
   "packageRules": [
     {
-      "matchCategories": [
-        "golang"
-      ]
-    },
-    {
       "matchManagers": [
         "gomod"
       ],
