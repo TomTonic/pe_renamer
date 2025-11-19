@@ -5,7 +5,7 @@ go 1.25.3
 require (
 	github.com/TomTonic/Set3 v0.4.2
 	github.com/TomTonic/levenshtein v0.1.0
-	github.com/alecthomas/kong v1.12.1
+	github.com/alecthomas/kong v1.13.0
 	github.com/google/uuid v1.6.0
 	github.com/saferwall/pe v1.5.7
 )
