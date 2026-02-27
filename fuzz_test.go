@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	misc "pe_renamer/misc"
@@ -96,6 +97,59 @@ func FuzzConciseErr(f *testing.F) {
 
 		_ = misc.ConciseErr(err)
 		_ = misc.ConciseErr(nil)
+	})
+}
+
+func FuzzRenameCandidateDryRun(f *testing.F) {
+	f.Add("renamed.exe", "orig", "", false, false, false)
+	f.Add("程序.exe", "🧪", "sub/dir", true, true, true)
+	f.Add(".dll", "CON", "..", false, true, false)
+
+	f.Fuzz(func(t *testing.T, newName, originalName, pathHint string, justExt, ignoreCase, verbose bool) {
+		if len(newName) > 512 || len(originalName) > 512 || len(pathHint) > 512 {
+			t.Skip()
+		}
+
+		if strings.ContainsRune(newName, '\x00') || strings.ContainsRune(originalName, '\x00') || strings.ContainsRune(pathHint, '\x00') {
+			t.Skip()
+		}
+
+		td := t.TempDir()
+		anchor := filepath.Join(td, "anchor.txt")
+		if err := os.WriteFile(anchor, []byte("anchor"), 0o600); err != nil {
+			t.Fatalf("write anchor: %v", err)
+		}
+
+		before, err := misc.DirTree(t, td, false)
+		if err != nil {
+			t.Fatalf("DirTree before failed: %v", err)
+		}
+
+		candidatePath := td
+		if pathHint != "" {
+			candidatePath = filepath.Join(td, pathHint)
+		}
+
+		cand := renamingCandidate{
+			Path:         candidatePath,
+			OriginalName: originalName,
+			NewName:      newName,
+		}
+
+		var outBuf, errBuf bytes.Buffer
+		renameCandidate(cand, verbose, true, justExt, ignoreCase, &outBuf, &errBuf)
+
+		after, err := misc.DirTree(t, td, false)
+		if err != nil {
+			t.Fatalf("DirTree after failed: %v", err)
+		}
+		if !before.Equals(after) {
+			t.Fatalf("dry-run changed filesystem (before=%v after=%v)", before.ToArray(), after.ToArray())
+		}
+
+		if outBuf.Len() == 0 && verbose {
+			t.Fatalf("expected dry-run output when verbose=true")
+		}
 	})
 }
 
