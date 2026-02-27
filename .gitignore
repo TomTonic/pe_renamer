@@ -16,3 +16,5 @@ pe_renamer
 .env
 
 .DS_Store
+.vscode/
+.idea/
