@@ -7,7 +7,7 @@ require (
 	github.com/TomTonic/levenshtein v0.1.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/google/uuid v1.6.0
-	github.com/saferwall/pe v1.6.4
+	github.com/saferwall/pe v1.6.5
 )
 
 require (
