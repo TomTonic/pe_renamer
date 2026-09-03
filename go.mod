@@ -1,6 +1,6 @@
 module pe_renamer
 
-go 1.26
+go 1.27
 
 require (
 	github.com/TomTonic/Set3 v0.4.2
